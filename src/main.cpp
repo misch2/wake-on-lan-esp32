@@ -8,10 +8,10 @@
 #include "HostMonitor.h"
 #include "WebServerManager.h"
 
-static AuthManager      authManager;
-static DeviceManager    deviceManager;
-static DisplayManager   displayManager;
-static HostMonitor      hostMonitor;
+static AuthManager authManager;
+static DeviceManager deviceManager;
+static DisplayManager displayManager;
+static HostMonitor hostMonitor;
 static WebServerManager webServerManager(deviceManager, authManager);
 
 // ── WiFi ──────────────────────────────────────────────────────────────────────
@@ -33,6 +33,11 @@ static void connectWiFi() {
     delay(5000);
     ESP.restart();
   }
+
+  // Explicitly stop the WiFiManager web server to release the port-80 socket
+  // before AsyncTCP tries to bind it.
+  wm.stopWebPortal();
+  delay(200);
 
   Serial.printf("[WiFi] Connected!  IP: %s\n", WiFi.localIP().toString().c_str());
   Serial.printf("[WiFi] Subnet:      %s\n", WiFi.subnetMask().toString().c_str());
