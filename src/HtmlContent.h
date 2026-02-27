@@ -232,6 +232,80 @@ static const char HTML_CONTENT[] = R"HTML(
 )HTML";
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Login page
+// ─────────────────────────────────────────────────────────────────────────────
+static const char HTML_LOGIN[] = R"HTML(
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WOL Admin \u2013 Login</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body { background-color: #f0f2f5; }
+    .login-card { max-width: 380px; }
+  </style>
+</head>
+<body class="d-flex align-items-center justify-content-center min-vh-100">
+<div class="login-card w-100 mx-3">
+  <div class="text-center mb-4">
+    <h3 class="fw-bold">&#128268; Wake on LAN</h3>
+    <p class="text-muted mb-0">Admin login</p>
+  </div>
+  <div class="card shadow">
+    <div class="card-body p-4">
+      <div id="err" class="alert alert-danger d-none" role="alert"></div>
+      <form id="login-form" onsubmit="doLogin(event)" novalidate>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="inp-password">Password</label>
+          <input type="password" class="form-control" id="inp-password"
+            placeholder="Enter password" required autofocus />
+          <div class="invalid-feedback">Password is required.</div>
+        </div>
+        <button type="submit" class="btn btn-primary w-100" id="login-btn">Login</button>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+  async function doLogin(e) {
+    e.preventDefault();
+    const form = document.getElementById('login-form');
+    if (!form.checkValidity()) { form.classList.add('was-validated'); return; }
+    const btn = document.getElementById('login-btn');
+    const err = document.getElementById('err');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>&nbsp;Logging in\u2026';
+    err.classList.add('d-none');
+    try {
+      const r = await fetch('/api/login', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ password: document.getElementById('inp-password').value }),
+      });
+      if (r.ok) {
+        const params = new URLSearchParams(window.location.search);
+        window.location.href = params.get('next') || '/admin';
+      } else {
+        const data = await r.json().catch(() => ({}));
+        err.textContent = data.error || 'Login failed.';
+        err.classList.remove('d-none');
+      }
+    } catch (ex) {
+      err.textContent = 'Request failed: ' + ex.message;
+      err.classList.remove('d-none');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'Login';
+    }
+  }
+</script>
+</body>
+</html>
+)HTML";
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Admin page – add / remove devices stored in LittleFS
 // ─────────────────────────────────────────────────────────────────────────────
 static const char HTML_ADMIN[] = R"HTML(
@@ -253,7 +327,10 @@ static const char HTML_ADMIN[] = R"HTML(
 <nav class="navbar navbar-dark bg-dark shadow-sm">
   <div class="container">
     <span class="navbar-brand fs-5 fw-semibold">&#9881; WOL Admin</span>
-    <a href="/" class="btn btn-outline-light btn-sm">&#8592; Devices</a>
+    <div class="d-flex gap-2">
+      <a href="/" class="btn btn-outline-light btn-sm">&#8592; Devices</a>
+      <button onclick="doLogout()" class="btn btn-outline-danger btn-sm">Logout</button>
+    </div>
   </div>
 </nav>
 
@@ -288,7 +365,7 @@ static const char HTML_ADMIN[] = R"HTML(
   </div>
 
   <!-- ── Add device form ──────────────────────────────────────────────── -->
-  <div class="card shadow-sm">
+  <div class="card shadow-sm mb-4">
     <div class="card-header"><h5 class="mb-0">Add Device</h5></div>
     <div class="card-body">
       <form id="add-form" onsubmit="addDevice(event)" novalidate>
@@ -319,6 +396,35 @@ static const char HTML_ADMIN[] = R"HTML(
       </form>
     </div>
   </div>
+
+  <!-- ── Change password ───────────────────────────────────────────────── -->
+  <div class="card shadow-sm">
+    <div class="card-header"><h5 class="mb-0">&#128274; Change Password</h5></div>
+    <div class="card-body">
+      <form id="pw-form" onsubmit="changePassword(event)" novalidate>
+        <div class="row g-3">
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold" for="inp-pw-cur">Current Password</label>
+            <input type="password" class="form-control" id="inp-pw-cur"
+              placeholder="Current password" required />
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold" for="inp-pw-new">New Password</label>
+            <input type="password" class="form-control" id="inp-pw-new"
+              placeholder="New password" required minlength="4" />
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label fw-semibold" for="inp-pw-cfm">Confirm New</label>
+            <input type="password" class="form-control" id="inp-pw-cfm"
+              placeholder="Repeat new password" required />
+          </div>
+          <div class="col-12 col-md-1 d-flex align-items-end">
+            <button type="submit" class="btn btn-warning w-100" id="pw-btn">Save</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <div id="toast-container" class="position-fixed bottom-0 end-0 p-3"></div>
@@ -326,11 +432,22 @@ static const char HTML_ADMIN[] = R"HTML(
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+  // ── Auth helpers ─────────────────────────────────────────────────────────
+  function checkAuth(r) {
+    if (r.status === 401) { window.location.href = '/login'; return false; }
+    return true;
+  }
+  async function doLogout() {
+    await fetch('/api/logout', { method: 'POST' }).catch(() => {});
+    window.location.href = '/login';
+  }
+
   // ── Fetch & render device table ──────────────────────────────────────────
 
   async function loadDevices() {
     try {
       const r = await fetch('/api/devices');
+      if (!checkAuth(r)) return;
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const devices = await r.json();
       const tbody = document.getElementById('device-rows');
@@ -365,6 +482,7 @@ static const char HTML_ADMIN[] = R"HTML(
     if (!confirm('Remove "' + alias + '" from the list?\nThis cannot be undone.')) return;
     try {
       const r = await fetch('/api/devices?mac=' + encodeURIComponent(mac), { method: 'DELETE' });
+      if (!checkAuth(r)) return;
       const data = await r.json();
       if (r.ok) {
         showToast('Device <strong>' + escHtml(alias) + '</strong> removed.', 'success');
@@ -399,6 +517,7 @@ static const char HTML_ADMIN[] = R"HTML(
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ alias, mac, ip }),
       });
+      if (!checkAuth(r)) return;
       const data = await r.json();
       if (r.ok) {
         showToast('Device <strong>' + escHtml(alias) + '</strong> added!', 'success');
@@ -412,6 +531,44 @@ static const char HTML_ADMIN[] = R"HTML(
     } finally {
       btn.disabled = false;
       btn.innerHTML = 'Add';
+    }
+  }
+
+  // ── Change password ───────────────────────────────────────────────────────
+
+  async function changePassword(e) {
+    e.preventDefault();
+    const form   = document.getElementById('pw-form');
+    const newPw  = document.getElementById('inp-pw-new').value;
+    const cfm    = document.getElementById('inp-pw-cfm');
+    cfm.setCustomValidity(newPw !== cfm.value ? 'Passwords do not match.' : '');
+    if (!form.checkValidity()) { form.classList.add('was-validated'); return; }
+    form.classList.remove('was-validated');
+    const btn = document.getElementById('pw-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+    try {
+      const r = await fetch('/api/password', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          current: document.getElementById('inp-pw-cur').value,
+          newPassword: newPw,
+        }),
+      });
+      if (!checkAuth(r)) return;
+      const data = await r.json();
+      if (r.ok) {
+        showToast('Password changed successfully.', 'success');
+        form.reset();
+      } else {
+        showToast('Error: ' + escHtml(data.error || 'Unknown error'), 'danger');
+      }
+    } catch (err) {
+      showToast('Request failed: ' + escHtml(err.message), 'danger');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'Save';
     }
   }
 

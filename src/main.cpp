@@ -1,16 +1,18 @@
 #include <Arduino.h>
 #include <WiFiManager.h>
 
+#include "AuthManager.h"
 #include "Config.h"
 #include "DeviceManager.h"
 #include "DisplayManager.h"
 #include "HostMonitor.h"
 #include "WebServerManager.h"
 
-static DeviceManager deviceManager;
-static DisplayManager displayManager;
-static HostMonitor hostMonitor;
-static WebServerManager webServerManager(deviceManager);
+static AuthManager      authManager;
+static DeviceManager    deviceManager;
+static DisplayManager   displayManager;
+static HostMonitor      hostMonitor;
+static WebServerManager webServerManager(deviceManager, authManager);
 
 // ── WiFi ──────────────────────────────────────────────────────────────────────
 
@@ -45,8 +47,9 @@ void setup() {
 
   Serial.println("\n=== Wake-on-LAN Controller ===");
 
-  // Load device list from LittleFS (mounts the filesystem on first boot)
+  // Mount LittleFS and load persistent data (device list + auth config)
   deviceManager.begin();
+  authManager.begin();
 
   displayManager.begin();
 
