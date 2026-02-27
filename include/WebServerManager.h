@@ -1,18 +1,25 @@
 #pragma once
 
 #include <ESPAsyncWebServer.h>
+
 #include <functional>
+
+#include "DeviceManager.h"
 
 /**
  * Manages the async HTTP server.
+ *
  * Routes:
- *   GET  /            - Serves the Bootstrap web interface.
- *   GET  /api/devices - Returns JSON array of configured devices.
- *   POST /api/wake    - Sends a WOL magic packet; requires ?mac=XX:XX:XX:XX:XX:XX.
+ *   GET  /              - Main Bootstrap web interface (WOL launcher).
+ *   GET  /admin         - Admin page (add / remove devices).
+ *   GET  /api/devices   - JSON array of current devices + online status.
+ *   POST /api/devices   - Add a device; body: {"alias":"...","mac":"...","ip":"..."}.
+ *   DELETE /api/devices - Remove a device; query param: ?mac=XX:XX:XX:XX:XX:XX.
+ *   POST /api/wake      - Send WOL magic packet; query param: ?mac=XX:XX:XX:XX:XX:XX.
  */
 class WebServerManager {
  public:
-  WebServerManager();
+  explicit WebServerManager(DeviceManager& deviceManager);
 
   /** Register routes and start the server. Call once in setup(). */
   void begin();
@@ -30,10 +37,19 @@ class WebServerManager {
    */
   void setGetOnlineStatusCallback(std::function<bool(size_t index)> cb);
 
+  /**
+   * Optional callback invoked after the device list changes (add or remove).
+   * Use it to restart HostMonitor with the updated list.
+   */
+  void setOnDeviceListChanged(std::function<void()> cb);
+
  private:
   AsyncWebServer _server;
-  std::function<void(const char* alias)>  _onWakeCallback;
-  std::function<bool(size_t index)>       _getOnlineStatus;
+  DeviceManager& _deviceManager;
+
+  std::function<void(const char* alias)> _onWakeCallback;
+  std::function<bool(size_t index)> _getOnlineStatus;
+  std::function<void()> _onDeviceListChanged;
 
   void registerRoutes();
 };

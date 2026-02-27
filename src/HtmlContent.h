@@ -17,12 +17,7 @@ static const char HTML_CONTENT[] = R"HTML(
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Wake on LAN Controller</title>
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
-    crossorigin="anonymous"
-  />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <style>
     body { background-color: #f0f2f5; }
     .device-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
@@ -52,6 +47,7 @@ static const char HTML_CONTENT[] = R"HTML(
     <div class="d-flex align-items-center gap-2">
       <span id="refresh-info" class="text-secondary d-none">&#x21bb; <span id="refresh-countdown"></span>s</span>
       <span id="status-badge" class="badge bg-secondary">Loading&hellip;</span>
+      <a href="/admin" class="btn btn-outline-light btn-sm">&#9881; Admin</a>
     </div>
   </div>
 </nav>
@@ -68,11 +64,7 @@ static const char HTML_CONTENT[] = R"HTML(
 
 <div id="toast-container" class="position-fixed bottom-0 end-0 p-3"></div>
 
-<script
-  src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-  integrity="sha384-YvpcrYf0tY3lHB60NNkmXc4s9bIOgUxi8T/jzmMXVbQOqIPHMNMKXIPJPFVl3d8z"
-  crossorigin="anonymous"
-></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
   const REFRESH_INTERVAL_S = 10;
@@ -232,6 +224,229 @@ static const char HTML_CONTENT[] = R"HTML(
   function escAttr(s) { return String(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
   // ── Boot ───────────────────────────────────────────────────────────────────
+
+  loadDevices();
+</script>
+</body>
+</html>
+)HTML";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin page – add / remove devices stored in LittleFS
+// ─────────────────────────────────────────────────────────────────────────────
+static const char HTML_ADMIN[] = R"HTML(
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WOL Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body { background-color: #f0f2f5; }
+    .mono { font-size: 0.82rem; letter-spacing: 0.04em; font-family: monospace; }
+    #toast-container { z-index: 1090; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark shadow-sm">
+  <div class="container">
+    <span class="navbar-brand fs-5 fw-semibold">&#9881; WOL Admin</span>
+    <a href="/" class="btn btn-outline-light btn-sm">&#8592; Devices</a>
+  </div>
+</nav>
+
+<div class="container py-4" style="max-width:860px">
+  <div id="alert-area"></div>
+
+  <!-- ── Device table ─────────────────────────────────────────────────── -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">Configured Devices</h5>
+      <button class="btn btn-sm btn-outline-secondary" onclick="loadDevices()">&#x21bb; Refresh</button>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Alias</th>
+              <th>MAC Address</th>
+              <th>IP Address</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody id="device-rows">
+            <tr><td colspan="4" class="text-center py-4 text-muted">
+              <div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading&hellip;
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Add device form ──────────────────────────────────────────────── -->
+  <div class="card shadow-sm">
+    <div class="card-header"><h5 class="mb-0">Add Device</h5></div>
+    <div class="card-body">
+      <form id="add-form" onsubmit="addDevice(event)" novalidate>
+        <div class="row g-3">
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold" for="inp-alias">Name / Alias</label>
+            <input type="text" class="form-control" id="inp-alias"
+              placeholder="My Desktop" required maxlength="64" />
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold" for="inp-mac">MAC Address</label>
+            <input type="text" class="form-control mono" id="inp-mac"
+              placeholder="AA:BB:CC:DD:EE:FF" required maxlength="17"
+              pattern="[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}"
+              title="Format: AA:BB:CC:DD:EE:FF" />
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label fw-semibold" for="inp-ip">
+              IP Address <span class="text-muted fw-normal">(optional, for ping)</span>
+            </label>
+            <input type="text" class="form-control mono" id="inp-ip"
+              placeholder="192.168.1.10" maxlength="15" />
+          </div>
+          <div class="col-12 col-md-1 d-flex align-items-end">
+            <button type="submit" class="btn btn-success w-100" id="add-btn">Add</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="position-fixed bottom-0 end-0 p-3"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // ── Fetch & render device table ──────────────────────────────────────────
+
+  async function loadDevices() {
+    try {
+      const r = await fetch('/api/devices');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const devices = await r.json();
+      const tbody = document.getElementById('device-rows');
+
+      if (devices.length === 0) {
+        tbody.innerHTML =
+          '<tr><td colspan="4" class="text-center py-4 text-muted">No devices configured yet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = devices.map(d => `
+        <tr>
+          <td>${escHtml(d.alias)}</td>
+          <td class="mono">${escHtml(d.mac)}</td>
+          <td class="mono">${d.ip ? escHtml(d.ip) : '<span class="text-muted">—</span>'}</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-danger"
+              onclick="deleteDevice('${escAttr(d.mac)}','${escAttr(d.alias)}')">
+              &#x1F5D1;&nbsp;Remove
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      showAlert('Failed to load devices: ' + escHtml(err.message), 'danger');
+    }
+  }
+
+  // ── Delete a device ──────────────────────────────────────────────────────
+
+  async function deleteDevice(mac, alias) {
+    if (!confirm('Remove "' + alias + '" from the list?\nThis cannot be undone.')) return;
+    try {
+      const r = await fetch('/api/devices?mac=' + encodeURIComponent(mac), { method: 'DELETE' });
+      const data = await r.json();
+      if (r.ok) {
+        showToast('Device <strong>' + escHtml(alias) + '</strong> removed.', 'success');
+        loadDevices();
+      } else {
+        showToast('Error: ' + escHtml(data.error || 'Unknown error'), 'danger');
+      }
+    } catch (err) {
+      showToast('Request failed: ' + escHtml(err.message), 'danger');
+    }
+  }
+
+  // ── Add a device ─────────────────────────────────────────────────────────
+
+  async function addDevice(e) {
+    e.preventDefault();
+    const form  = document.getElementById('add-form');
+    if (!form.checkValidity()) { form.classList.add('was-validated'); return; }
+    form.classList.remove('was-validated');
+
+    const alias = document.getElementById('inp-alias').value.trim();
+    const mac   = document.getElementById('inp-mac').value.trim().toUpperCase();
+    const ip    = document.getElementById('inp-ip').value.trim();
+    const btn   = document.getElementById('add-btn');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+
+    try {
+      const r = await fetch('/api/devices', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ alias, mac, ip }),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        showToast('Device <strong>' + escHtml(alias) + '</strong> added!', 'success');
+        form.reset();
+        loadDevices();
+      } else {
+        showToast('Error: ' + escHtml(data.error || 'Unknown error'), 'danger');
+      }
+    } catch (err) {
+      showToast('Request failed: ' + escHtml(err.message), 'danger');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'Add';
+    }
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  function showAlert(msg, type) {
+    document.getElementById('alert-area').innerHTML =
+      `<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+         ${msg}
+         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+       </div>`;
+  }
+
+  function showToast(message, type) {
+    const id = 'toast-' + Date.now();
+    const c  = document.getElementById('toast-container');
+    c.insertAdjacentHTML('beforeend', `
+      <div id="${id}" class="toast align-items-center text-bg-${type} border-0"
+           role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body">${message}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                  data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>`);
+    const el = document.getElementById(id);
+    new bootstrap.Toast(el, { delay: 4000 }).show();
+    el.addEventListener('hidden.bs.toast', () => el.remove());
+  }
+
+  const _escEl = document.createElement('span');
+  function escHtml(s)  { _escEl.textContent = String(s); return _escEl.innerHTML; }
+  function escAttr(s) { return String(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
 
   loadDevices();
 </script>

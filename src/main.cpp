@@ -2,13 +2,15 @@
 #include <WiFiManager.h>
 
 #include "Config.h"
+#include "DeviceManager.h"
 #include "DisplayManager.h"
 #include "HostMonitor.h"
 #include "WebServerManager.h"
 
-static DisplayManager   displayManager;
-static HostMonitor      hostMonitor;
-static WebServerManager webServerManager;
+static DeviceManager deviceManager;
+static DisplayManager displayManager;
+static HostMonitor hostMonitor;
+static WebServerManager webServerManager(deviceManager);
 
 // ── WiFi ──────────────────────────────────────────────────────────────────────
 
@@ -43,6 +45,9 @@ void setup() {
 
   Serial.println("\n=== Wake-on-LAN Controller ===");
 
+  // Load device list from LittleFS (mounts the filesystem on first boot)
+  deviceManager.begin();
+
   displayManager.begin();
 
   // Show a boot/portal screen immediately (will be replaced once connected)
@@ -60,13 +65,7 @@ void setup() {
   displayManager.update();
 
   // ── HostMonitor ──────────────────────────────────────────────────────────
-  // // Rebuild display statuses whenever any device's ping result changes
-  // hostMonitor.setOnStatusChange([]() {
-  //   bool statuses[DEVICE_COUNT];
-  //   for (size_t i = 0; i < DEVICE_COUNT; i++) statuses[i] = hostMonitor.isOnline(i);
-  //   displayManager.setDeviceStatuses(statuses, DEVICE_COUNT);
-  // });
-  hostMonitor.begin();
+  hostMonitor.begin(deviceManager.devices());
 
   // ── Wire the WOL notification to the display ──────────────────────────────
   webServerManager.setOnWakeCallback([](const char* alias) {
@@ -75,13 +74,18 @@ void setup() {
   });
 
   // Provide online status to the /api/devices endpoint
-  webServerManager.setGetOnlineStatusCallback([](size_t index) {
-    return hostMonitor.isOnline(index);
+  webServerManager.setGetOnlineStatusCallback([](size_t index) { return hostMonitor.isOnline(index); });
+
+  // Restart HostMonitor whenever the device list changes via the admin page
+  webServerManager.setOnDeviceListChanged([]() {
+    Serial.println("[Main] Device list changed – restarting HostMonitor");
+    hostMonitor.restart(deviceManager.devices());
   });
 
   webServerManager.begin();
 
   Serial.printf("[WOL] Open http://%s/ in your browser\n", WiFi.localIP().toString().c_str());
+  Serial.printf("[WOL] Admin: http://%s/admin\n", WiFi.localIP().toString().c_str());
 }
 
 void loop() {

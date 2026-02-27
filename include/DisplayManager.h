@@ -42,25 +42,25 @@ class DisplayManager {
   U8G2_SSD1306_72X40_ER_F_HW_I2C _u8g2;
 
   enum class State { Portal, Connected, Waking };
-  volatile State _state   = State::Portal;
-  volatile bool  _redraw  = false;
-  unsigned long  _wakingUntil = 0;
+  volatile State _state = State::Portal;
+  volatile bool _redraw = false;
+  unsigned long _wakingUntil = 0;
 
   static constexpr unsigned long WAKING_DURATION_MS = 3000;
 
   // Display hardware constants
-  static constexpr uint8_t DISPLAY_WIDTH  = 72;
+  static constexpr uint8_t DISPLAY_WIDTH = 72;
   static constexpr uint8_t DISPLAY_HEIGHT = 40;
-  static constexpr uint8_t SCL_PIN        = 6;
-  static constexpr uint8_t SDA_PIN        = 5;
+  static constexpr uint8_t SCL_PIN = 6;
+  static constexpr uint8_t SDA_PIN = 5;
   // Approximate max chars per line at font width 5 px
   static constexpr uint8_t CHARS_PER_LINE = DISPLAY_WIDTH / 5;
 
   // Buffered strings (written atomically enough for a display)
-  char _ssid[33]   = {};
-  char _ip[17]     = {};
+  char _ssid[33] = {};
+  char _ip[17] = {};
   char _apName[33] = {};
-  char _alias[33]  = {};
+  char _alias[33] = {};
 
   void drawPortal();
   void drawConnected();
