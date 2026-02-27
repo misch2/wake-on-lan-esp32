@@ -24,9 +24,16 @@ class WebServerManager {
    */
   void setOnWakeCallback(std::function<void(const char* alias)> cb);
 
+  /**
+   * Optional callback that returns the current online status for device[index].
+   * When set, /api/devices includes an "online" boolean per entry.
+   */
+  void setGetOnlineStatusCallback(std::function<bool(size_t index)> cb);
+
  private:
   AsyncWebServer _server;
-  std::function<void(const char* alias)> _onWakeCallback;
+  std::function<void(const char* alias)>  _onWakeCallback;
+  std::function<bool(size_t index)>       _getOnlineStatus;
 
   void registerRoutes();
 };

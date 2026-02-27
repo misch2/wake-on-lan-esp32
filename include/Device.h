@@ -6,4 +6,5 @@
 struct Device {
   const char* alias;  ///< Human-readable name shown in the UI
   const char* mac;    ///< MAC address in "AA:BB:CC:DD:EE:FF" format
+  const char* ip;     ///< IPv4 address in dotted-decimal, or "" if unknown
 };

@@ -3,9 +3,11 @@
 
 #include "Config.h"
 #include "DisplayManager.h"
+#include "HostMonitor.h"
 #include "WebServerManager.h"
 
-static DisplayManager displayManager;
+static DisplayManager   displayManager;
+static HostMonitor      hostMonitor;
 static WebServerManager webServerManager;
 
 // ── WiFi ──────────────────────────────────────────────────────────────────────
@@ -57,10 +59,24 @@ void setup() {
   displayManager.showConnected(WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
   displayManager.update();
 
-  // Wire the WOL notification to the display
+  // ── HostMonitor ──────────────────────────────────────────────────────────
+  // // Rebuild display statuses whenever any device's ping result changes
+  // hostMonitor.setOnStatusChange([]() {
+  //   bool statuses[DEVICE_COUNT];
+  //   for (size_t i = 0; i < DEVICE_COUNT; i++) statuses[i] = hostMonitor.isOnline(i);
+  //   displayManager.setDeviceStatuses(statuses, DEVICE_COUNT);
+  // });
+  hostMonitor.begin();
+
+  // ── Wire the WOL notification to the display ──────────────────────────────
   webServerManager.setOnWakeCallback([](const char* alias) {
     displayManager.showWaking(alias);
     displayManager.update();
+  });
+
+  // Provide online status to the /api/devices endpoint
+  webServerManager.setGetOnlineStatusCallback([](size_t index) {
+    return hostMonitor.isOnline(index);
   });
 
   webServerManager.begin();

@@ -1,6 +1,7 @@
 #include "WebServerManager.h"
 
 #include <ArduinoJson.h>
+#include <cstring>
 
 #include "Config.h"
 #include "HtmlContent.h"
@@ -10,6 +11,10 @@ WebServerManager::WebServerManager() : _server(WEB_SERVER_PORT) {}
 
 void WebServerManager::setOnWakeCallback(std::function<void(const char* alias)> cb) {
   _onWakeCallback = cb;
+}
+
+void WebServerManager::setGetOnlineStatusCallback(std::function<bool(size_t index)> cb) {
+  _getOnlineStatus = cb;
 }
 
 void WebServerManager::begin() {
@@ -23,14 +28,16 @@ void WebServerManager::registerRoutes() {
   _server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(200, "text/html", HTML_CONTENT); });
 
   // ── GET /api/devices ──────────────────────────────────────────────────────
-  _server.on("/api/devices", HTTP_GET, [](AsyncWebServerRequest* request) {
+  _server.on("/api/devices", HTTP_GET, [this](AsyncWebServerRequest* request) {
     JsonDocument doc;
     JsonArray arr = doc.to<JsonArray>();
 
     for (size_t i = 0; i < DEVICE_COUNT; i++) {
       JsonObject obj = arr.add<JsonObject>();
-      obj["alias"] = DEVICES[i].alias;
-      obj["mac"] = DEVICES[i].mac;
+      obj["alias"]  = DEVICES[i].alias;
+      obj["mac"]    = DEVICES[i].mac;
+      obj["ip"]     = DEVICES[i].ip;
+      obj["online"] = _getOnlineStatus ? _getOnlineStatus(i) : false;
     }
 
     String json;

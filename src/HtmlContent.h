@@ -2,8 +2,13 @@
 
 /**
  * Embedded Bootstrap 5 web interface for the Wake-on-LAN controller.
- * Fetches /api/devices on load and renders a card per device with a Wake button.
- * Wake requests are sent as POST /api/wake?mac=<mac>.
+ *
+ * Features:
+ *   - Device cards show alias, MAC, IP, and live online/offline badge.
+ *   - Status is polled from /api/devices every REFRESH_INTERVAL_S seconds.
+ *   - Incremental DOM updates avoid full re-render flicker on refresh.
+ *   - After a Wake request, refresh fires 3 s later to catch the device coming up.
+ *   - Wake requests are sent as POST /api/wake?mac=<mac>.
  */
 static const char HTML_CONTENT[] = R"HTML(
 <!DOCTYPE html>
@@ -20,14 +25,22 @@ static const char HTML_CONTENT[] = R"HTML(
   />
   <style>
     body { background-color: #f0f2f5; }
-    .device-card {
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
+    .device-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
     .device-card:hover {
       transform: translateY(-3px);
       box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15) !important;
     }
-    .mac-badge { font-size: 0.78rem; letter-spacing: 0.04em; }
+    .mono { font-size: 0.78rem; letter-spacing: 0.04em; font-family: monospace; }
+    .status-dot {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      margin-right: 5px;
+      flex-shrink: 0;
+    }
+    .status-dot.online  { background: #198754; box-shadow: 0 0 5px #19875488; }
+    .status-dot.offline { background: #adb5bd; }
+    #refresh-info { font-size: 0.8rem; }
     #toast-container { z-index: 1090; }
   </style>
 </head>
@@ -35,10 +48,11 @@ static const char HTML_CONTENT[] = R"HTML(
 
 <nav class="navbar navbar-dark bg-dark shadow-sm">
   <div class="container">
-    <span class="navbar-brand fs-5 fw-semibold">
-      &#128268; Wake on LAN Controller
-    </span>
-    <span id="status-badge" class="badge bg-secondary">Loading&hellip;</span>
+    <span class="navbar-brand fs-5 fw-semibold">&#128268; Wake on LAN Controller</span>
+    <div class="d-flex align-items-center gap-2">
+      <span id="refresh-info" class="text-secondary d-none">&#x21bb; <span id="refresh-countdown"></span>s</span>
+      <span id="status-badge" class="badge bg-secondary">Loading&hellip;</span>
+    </div>
   </div>
 </nav>
 
@@ -61,21 +75,61 @@ static const char HTML_CONTENT[] = R"HTML(
 ></script>
 
 <script>
+  const REFRESH_INTERVAL_S = 10;
+  let refreshTimer = null;
+  let countdownTimer = null;
+  let secondsLeft = REFRESH_INTERVAL_S;
+  let initialLoad = true;
+
+  // ── Data fetching ──────────────────────────────────────────────────────────
+
   async function loadDevices() {
     try {
       const response = await fetch('/api/devices');
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const devices = await response.json();
-      renderDevices(devices);
+
+      if (initialLoad) {
+        renderDevices(devices);
+        initialLoad = false;
+      } else {
+        updateStatuses(devices);
+      }
+
+      const onlineCount = devices.filter(d => d.online).length;
       document.getElementById('status-badge').className = 'badge bg-success';
-      document.getElementById('status-badge').textContent = devices.length + ' device(s)';
+      document.getElementById('status-badge').textContent =
+        onlineCount + '/' + devices.length + ' online';
     } catch (err) {
-      document.getElementById('device-list').innerHTML =
-        '<div class="col-12"><div class="alert alert-danger">Failed to load devices: ' + err.message + '</div></div>';
+      if (initialLoad) {
+        document.getElementById('device-list').innerHTML =
+          '<div class="col-12"><div class="alert alert-danger">Failed to load devices: ' +
+          escHtml(err.message) + '</div></div>';
+      }
       document.getElementById('status-badge').className = 'badge bg-danger';
       document.getElementById('status-badge').textContent = 'Error';
     }
+    scheduleRefresh();
   }
+
+  function scheduleRefresh(delaySecs) {
+    const secs = delaySecs || REFRESH_INTERVAL_S;
+    clearTimeout(refreshTimer);
+    clearInterval(countdownTimer);
+    secondsLeft = secs;
+    document.getElementById('refresh-info').classList.remove('d-none');
+    document.getElementById('refresh-countdown').textContent = secondsLeft;
+
+    countdownTimer = setInterval(() => {
+      secondsLeft--;
+      document.getElementById('refresh-countdown').textContent = Math.max(0, secondsLeft);
+      if (secondsLeft <= 0) clearInterval(countdownTimer);
+    }, 1000);
+
+    refreshTimer = setTimeout(loadDevices, secs * 1000);
+  }
+
+  // ── Full initial render ────────────────────────────────────────────────────
 
   function renderDevices(devices) {
     const list = document.getElementById('device-list');
@@ -83,13 +137,24 @@ static const char HTML_CONTENT[] = R"HTML(
       list.innerHTML = '<div class="col-12"><div class="alert alert-warning">No devices configured.</div></div>';
       return;
     }
-    list.innerHTML = devices.map(d => `
+    list.innerHTML = devices.map((d, idx) => `
       <div class="col-12 col-sm-6 col-xl-4">
-        <div class="card device-card shadow-sm h-100">
+        <div class="card device-card shadow-sm h-100" id="card-${idx}">
           <div class="card-body d-flex justify-content-between align-items-center gap-3">
-            <div class="overflow-hidden">
-              <h5 class="card-title mb-1 text-truncate">${escHtml(d.alias)}</h5>
-              <span class="badge bg-light text-secondary mac-badge font-monospace">${escHtml(d.mac)}</span>
+            <div class="overflow-hidden flex-grow-1">
+              <div class="d-flex align-items-center mb-1">
+                <span class="status-dot ${d.online ? 'online' : 'offline'}" id="dot-${idx}" title="${d.online ? 'Online' : 'Offline'}"></span>
+                <h5 class="card-title mb-0 text-truncate">${escHtml(d.alias)}</h5>
+              </div>
+              <div class="d-flex flex-wrap gap-1 mt-1">
+                <span class="badge bg-light text-secondary mono">${escHtml(d.mac)}</span>
+                ${d.ip ? `<span class="badge bg-light text-secondary mono">${escHtml(d.ip)}</span>` : ''}
+              </div>
+              <div class="mt-1">
+                <span class="badge ${d.online ? 'text-bg-success' : 'text-bg-secondary'}" id="badge-${idx}">
+                  ${d.online ? 'Online' : 'Offline'}
+                </span>
+              </div>
             </div>
             <button
               class="btn btn-success flex-shrink-0"
@@ -104,6 +169,23 @@ static const char HTML_CONTENT[] = R"HTML(
     `).join('');
   }
 
+  // ── Incremental status-only update (avoids full re-render flicker) ─────────
+
+  function updateStatuses(devices) {
+    devices.forEach((d, idx) => {
+      const dot   = document.getElementById('dot-'   + idx);
+      const badge = document.getElementById('badge-' + idx);
+      if (!dot || !badge) return;
+
+      dot.className = 'status-dot ' + (d.online ? 'online' : 'offline');
+      dot.title     = d.online ? 'Online' : 'Offline';
+      badge.className   = 'badge ' + (d.online ? 'text-bg-success' : 'text-bg-secondary');
+      badge.textContent = d.online ? 'Online' : 'Offline';
+    });
+  }
+
+  // ── Wake action ────────────────────────────────────────────────────────────
+
   async function wakeDevice(btn, mac, alias) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
@@ -112,6 +194,8 @@ static const char HTML_CONTENT[] = R"HTML(
       const data = await response.json();
       if (response.ok) {
         showToast('Magic packet sent to <strong>' + escHtml(alias) + '</strong>', 'success');
+        // Refresh sooner – device should appear online soon after WOL
+        scheduleRefresh(3);
       } else {
         showToast('Error: ' + escHtml(data.error || 'Unknown error'), 'danger');
       }
@@ -122,6 +206,8 @@ static const char HTML_CONTENT[] = R"HTML(
       btn.innerHTML = '&#9654;&nbsp;Wake';
     }
   }
+
+  // ── Toast helper ───────────────────────────────────────────────────────────
 
   function showToast(message, type) {
     const id = 'toast-' + Date.now();
@@ -139,15 +225,13 @@ static const char HTML_CONTENT[] = R"HTML(
     el.addEventListener('hidden.bs.toast', () => el.remove());
   }
 
-  // Minimal XSS helpers
-  const escEl = document.createElement('span');
-  function escHtml(s) {
-    escEl.textContent = String(s);
-    return escEl.innerHTML;
-  }
-  function escAttr(s) {
-    return String(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
+  // ── XSS helpers ───────────────────────────────────────────────────────────
+
+  const _escEl = document.createElement('span');
+  function escHtml(s) { _escEl.textContent = String(s); return _escEl.innerHTML; }
+  function escAttr(s) { return String(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  // ── Boot ───────────────────────────────────────────────────────────────────
 
   loadDevices();
 </script>
