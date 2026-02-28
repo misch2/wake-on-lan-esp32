@@ -9,7 +9,3 @@
 
 // ── Web Server ────────────────────────────────────────────────────────────────
 #define WEB_SERVER_PORT 80
-
-// ── Device list ───────────────────────────────────────────────────────────────
-// Devices are now stored dynamically in LittleFS at /devices.json.
-// Use the Admin page (http://<ip>/admin) to add or remove devices at runtime.
