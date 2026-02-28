@@ -50,7 +50,11 @@ static void redirectToLogin(AsyncWebServerRequest* request) {
 
 void WebServerManager::registerRoutes() {
   // ── GET / ─────────────────────────────────────────────────────────────────
-  _server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(200, "text/html", HTML_CONTENT); });
+  _server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
+    String html = HTML_CONTENT;
+    html.replace("{{GIT_HASH}}", GIT_HASH);
+    request->send(200, "text/html", html);
+  });
 
   // ── GET /login ────────────────────────────────────────────────────────────
   _server.on("/login", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(200, "text/html", HTML_LOGIN); });
