@@ -65,7 +65,7 @@ class AuthManager {
 
   /**
    * Hash and persist a new password for `username`.
-   * Does NOT verify the old password — callers must do that beforehand.
+   * Does NOT verify the old password - callers must do that beforehand.
    * Returns false if the user is not found or on I/O error.
    */
   bool changePassword(const String& username, const String& newPassword);
