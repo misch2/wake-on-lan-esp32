@@ -3,6 +3,8 @@
 A small gadget that lets anyone on the local network wake up computers via a simple browser interface, hosted on minimal hardware.
 
 <img width="592" height="579" alt="image" src="https://github.com/user-attachments/assets/e744f7fb-c296-4658-bd8b-2727e69dcc5a" />
+<img width="649" height="455" alt="image" src="https://github.com/user-attachments/assets/6a0d22b9-d91a-4110-9be1-a0cf17f74bb5" />
+
 
 
 ## Features
