@@ -3,9 +3,6 @@
 A small gadget that lets anyone on the local network wake up computers via a simple browser interface, hosted on minimal hardware.
 
 <img width="592" height="579" alt="image" src="https://github.com/user-attachments/assets/e744f7fb-c296-4658-bd8b-2727e69dcc5a" />
-<img width="649" height="455" alt="image" src="https://github.com/user-attachments/assets/6a0d22b9-d91a-4110-9be1-a0cf17f74bb5" />
-
-
 
 ## Features
 
@@ -13,7 +10,6 @@ A small gadget that lets anyone on the local network wake up computers via a sim
 - **Live status** - each device shows an online/offline badge updated by continuous background ICMP ping
 - **Admin interface** - add/remove devices, manage admin accounts, change passwords; protected by session cookie auth
 - **Multiple admin accounts** - add as many admin users as needed; each has their own login
-- **Zero-config startup** - WiFi credentials are entered once through a captive portal, stored in flash, and reused on every subsequent boot
 
 ---
 
@@ -22,9 +18,8 @@ A small gadget that lets anyone on the local network wake up computers via a sim
 | Component | Details |
 |-----------|---------|
 | MCU | ESP32-C3 Super Mini (or compatible) |
-| Display | SSD1306 72×40 OLED, I²C - SCL → GPIO 6, SDA → GPIO 5 (optional) |
 
-I bought mine here: https://www.aliexpress.com/item/1005007929382296.html (the purple board)
+I used a $4 board with integrated mini 72x40 pixels OLED from https://www.aliexpress.com/item/1005007929382296.html
 
 ---
 
@@ -42,9 +37,6 @@ pio run -t upload
 # Monitor serial output
 pio device monitor
 ```
-
-> **Note:** set the correct `upload_port` in `platformio.ini` before flashing (default is `COM13`).
-
 ---
 
 ## First-time WiFi setup
@@ -115,5 +107,5 @@ For WOL to work on the target PC:
    - Open *Device Manager → Network Adapters → [your adapter] → Properties*
    - *Power Management* tab → check **Allow this device to wake the computer**
    - *Advanced* tab → set **Wake on Magic Packet** to **Enabled**
-3. **Keep the PC plugged in** - WOL does not work on battery-only laptops when power is disconnected.
+3. **Keep the PC plugged in** of course, WOL does not work on battery-only laptops when power is disconnected.
 4. **Router/subnet** - the ESP32 and the target PC must be on the same subnet, as the magic packet is sent as a UDP broadcast to `255.255.255.255` on port 9.
