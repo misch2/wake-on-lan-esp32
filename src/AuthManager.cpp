@@ -9,52 +9,69 @@
 
 bool AuthManager::begin() {
   if (!LittleFS.exists(CONFIG_PATH)) {
-    Serial.println("[Auth] No auth config - writing default password 'admin'");
-    return setPassword(DEFAULT_PASSWORD);
+    Serial.println("[Auth] No auth config - creating default admin account");
+    _users[DEFAULT_USERNAME] = sha256hex(DEFAULT_PASSWORD);
+    return save();
   }
 
   File f = LittleFS.open(CONFIG_PATH, "r");
   if (!f) {
     Serial.println("[Auth] Cannot open auth config - resetting to default");
-    return setPassword(DEFAULT_PASSWORD);
+    _users[DEFAULT_USERNAME] = sha256hex(DEFAULT_PASSWORD);
+    return save();
   }
 
   JsonDocument doc;
   const auto err = deserializeJson(doc, f);
   f.close();
 
-  if (err || !doc["hash"].is<const char*>()) {
+  if (err) {
     Serial.println("[Auth] Bad auth config - resetting to default");
-    return setPassword(DEFAULT_PASSWORD);
+    _users[DEFAULT_USERNAME] = sha256hex(DEFAULT_PASSWORD);
+    return save();
   }
 
-  _hash = doc["hash"].as<String>();
-  Serial.println("[Auth] Password loaded from config");
+  // Migrate legacy single-user format: {"hash":"..."}
+  if (doc["hash"].is<const char*>() && !doc["users"].is<JsonArray>()) {
+    Serial.println("[Auth] Migrating legacy auth config to multi-user format");
+    _users.clear();
+    _users[DEFAULT_USERNAME] = doc["hash"].as<String>();
+    return save();
+  }
+
+  // Current multi-user format: {"users":[{"username":"...","hash":"..."}]}
+  if (!doc["users"].is<JsonArray>()) {
+    Serial.println("[Auth] Unknown auth config format - resetting to default");
+    _users[DEFAULT_USERNAME] = sha256hex(DEFAULT_PASSWORD);
+    return save();
+  }
+
+  _users.clear();
+  for (JsonObject u : doc["users"].as<JsonArray>()) {
+    const String uname = u["username"] | "";
+    const String hash  = u["hash"]     | "";
+    if (!uname.isEmpty() && !hash.isEmpty()) {
+      _users[uname] = hash;
+    }
+  }
+
+  if (_users.empty()) {
+    Serial.println("[Auth] Auth config has no valid users - resetting to default");
+    _users[DEFAULT_USERNAME] = sha256hex(DEFAULT_PASSWORD);
+    return save();
+  }
+
+  Serial.printf("[Auth] Loaded %zu admin account(s) from config\n", _users.size());
   return true;
 }
 
-bool AuthManager::checkPassword(const String& password) const {
-  return sha256hex(password) == _hash;
+bool AuthManager::checkCredentials(const String& username, const String& password) const {
+  const auto it = _users.find(username);
+  if (it == _users.end()) return false;
+  return sha256hex(password) == it->second;
 }
 
-bool AuthManager::setPassword(const String& newPassword) {
-  _hash = sha256hex(newPassword);
-
-  JsonDocument doc;
-  doc["hash"] = _hash;
-
-  File f = LittleFS.open(CONFIG_PATH, "w");
-  if (!f) {
-    Serial.println("[Auth] Cannot write auth config");
-    return false;
-  }
-  serializeJson(doc, f);
-  f.close();
-  Serial.println("[Auth] Password updated and saved");
-  return true;
-}
-
-String AuthManager::createSession() {
+String AuthManager::createSession(const String& username) {
   pruneExpiredSessions();
   if (_sessions.size() >= MAX_SESSIONS) {
     Serial.println("[Auth] Session table full - clearing all sessions");
@@ -70,16 +87,22 @@ String AuthManager::createSession() {
     token += buf;
   }
 
-  _sessions[token] = millis();
-  Serial.printf("[Auth] Session created (active: %zu)\n", _sessions.size());
+  _sessions[token] = {millis(), username};
+  Serial.printf("[Auth] Session created for '%s' (active: %zu)\n", username.c_str(), _sessions.size());
   return token;
 }
 
 bool AuthManager::validateSession(const String& token) const {
-  auto it = _sessions.find(token);
+  const auto it = _sessions.find(token);
   if (it == _sessions.end()) return false;
-  // unsigned subtraction wraps correctly, handles millis() rollover after ~49 days
-  return (millis() - it->second) < SESSION_DURATION_MS;
+  return (millis() - it->second.createdAt) < SESSION_DURATION_MS;
+}
+
+String AuthManager::getSessionUser(const String& token) const {
+  const auto it = _sessions.find(token);
+  if (it == _sessions.end()) return "";
+  if ((millis() - it->second.createdAt) >= SESSION_DURATION_MS) return "";
+  return it->second.username;
 }
 
 void AuthManager::destroySession(const String& token) {
@@ -88,7 +111,79 @@ void AuthManager::destroySession(const String& token) {
   }
 }
 
+std::vector<String> AuthManager::listUsers() const {
+  std::vector<String> out;
+  out.reserve(_users.size());
+  for (const auto& kv : _users) {
+    out.push_back(kv.first);
+  }
+  return out;  // std::map iterates in sorted order
+}
+
+bool AuthManager::addUser(const String& username, const String& password) {
+  if (username.isEmpty()) return false;
+  if (_users.count(username)) {
+    Serial.printf("[Auth] addUser: '%s' already exists\n", username.c_str());
+    return false;
+  }
+  _users[username] = sha256hex(password);
+  Serial.printf("[Auth] User '%s' added\n", username.c_str());
+  return save();
+}
+
+bool AuthManager::removeUser(const String& username) {
+  if (_users.size() <= 1) {
+    Serial.println("[Auth] removeUser: cannot remove the last admin account");
+    return false;
+  }
+  if (!_users.erase(username)) {
+    Serial.printf("[Auth] removeUser: '%s' not found\n", username.c_str());
+    return false;
+  }
+  // Invalidate all active sessions belonging to the removed user
+  for (auto it = _sessions.begin(); it != _sessions.end(); ) {
+    if (it->second.username == username) {
+      it = _sessions.erase(it);
+    } else {
+      ++it;
+    }
+  }
+  Serial.printf("[Auth] User '%s' removed\n", username.c_str());
+  return save();
+}
+
+bool AuthManager::changePassword(const String& username, const String& newPassword) {
+  const auto it = _users.find(username);
+  if (it == _users.end()) {
+    Serial.printf("[Auth] changePassword: user '%s' not found\n", username.c_str());
+    return false;
+  }
+  it->second = sha256hex(newPassword);
+  Serial.printf("[Auth] Password changed for '%s'\n", username.c_str());
+  return save();
+}
+
 // ── Private ───────────────────────────────────────────────────────────────────
+
+bool AuthManager::save() const {
+  JsonDocument doc;
+  JsonArray arr = doc["users"].to<JsonArray>();
+  for (const auto& kv : _users) {
+    JsonObject u = arr.add<JsonObject>();
+    u["username"] = kv.first;
+    u["hash"]     = kv.second;
+  }
+
+  File f = LittleFS.open(CONFIG_PATH, "w");
+  if (!f) {
+    Serial.println("[Auth] Cannot write auth config");
+    return false;
+  }
+  serializeJson(doc, f);
+  f.close();
+  Serial.println("[Auth] Auth config saved");
+  return true;
+}
 
 String AuthManager::sha256hex(const String& input) {
   uint8_t digest[32];
@@ -113,7 +208,7 @@ String AuthManager::sha256hex(const String& input) {
 void AuthManager::pruneExpiredSessions() {
   const unsigned long now = millis();
   for (auto it = _sessions.begin(); it != _sessions.end(); ) {
-    if (now - it->second >= SESSION_DURATION_MS) {
+    if (now - it->second.createdAt >= SESSION_DURATION_MS) {
       it = _sessions.erase(it);
     } else {
       ++it;

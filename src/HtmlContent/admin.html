@@ -87,6 +87,55 @@ R"HTML(
     </div>
   </div>
 
+  <!-- ── Manage admins ────────────────────────────────────────────────── -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">&#128100; Admin Accounts</h5>
+      <button class="btn btn-sm btn-outline-secondary" onclick="loadUsers()">&#x21bb; Refresh</button>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Username</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody id="user-rows">
+            <tr><td colspan="2" class="text-center py-3 text-muted">
+              <div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading&hellip;
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card-footer">
+      <form id="add-user-form" onsubmit="addUser(event)" novalidate>
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-semibold mb-1" for="inp-user-name">New Username</label>
+            <input type="text" class="form-control form-control-sm" id="inp-user-name"
+              placeholder="username" required maxlength="64" autocomplete="off" />
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label fw-semibold mb-1" for="inp-user-pw">Password</label>
+            <input type="password" class="form-control form-control-sm" id="inp-user-pw"
+              placeholder="password" required minlength="4" autocomplete="new-password" />
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label fw-semibold mb-1" for="inp-user-pw2">Confirm</label>
+            <input type="password" class="form-control form-control-sm" id="inp-user-pw2"
+              placeholder="repeat password" required autocomplete="new-password" />
+          </div>
+          <div class="col-12 col-md-2">
+            <button type="submit" class="btn btn-sm btn-success w-100" id="add-user-btn">Add Admin</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ── Change password ───────────────────────────────────────────────── -->
   <div class="card shadow-sm">
     <div class="card-header"><h5 class="mb-0">&#128274; Change Password</h5></div>
@@ -293,9 +342,93 @@ R"HTML(
   function escHtml(s)  { _escEl.textContent = String(s); return _escEl.innerHTML; }
   function escAttr(s) { return String(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
+  // ── Admin user management ─────────────────────────────────────────────────
+
+  async function loadUsers() {
+    try {
+      const r = await fetch('/api/users');
+      if (!checkAuth(r)) return;
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const users = await r.json();
+      const tbody = document.getElementById('user-rows');
+      if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="2" class="text-center py-3 text-muted">No accounts found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = users.map(u => `
+        <tr>
+          <td>${escHtml(u)}</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-danger"
+              onclick="deleteUser('${escAttr(u)}')">
+              &#x1F5D1;&nbsp;Remove
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      showAlert('Failed to load admin accounts: ' + escHtml(err.message), 'danger');
+    }
+  }
+
+  async function deleteUser(username) {
+    if (!confirm('Remove admin "' + username + '"?\nThey will be logged out immediately.')) return;
+    try {
+      const r = await fetch('/api/users?username=' + encodeURIComponent(username), { method: 'DELETE' });
+      if (!checkAuth(r)) return;
+      const data = await r.json();
+      if (r.ok) {
+        showToast('Admin <strong>' + escHtml(username) + '</strong> removed.', 'success');
+        loadUsers();
+      } else {
+        showToast('Error: ' + escHtml(data.error || 'Unknown error'), 'danger');
+      }
+    } catch (err) {
+      showToast('Request failed: ' + escHtml(err.message), 'danger');
+    }
+  }
+
+  async function addUser(e) {
+    e.preventDefault();
+    const form = document.getElementById('add-user-form');
+    const pw   = document.getElementById('inp-user-pw').value;
+    const pw2  = document.getElementById('inp-user-pw2');
+    pw2.setCustomValidity(pw !== pw2.value ? 'Passwords do not match.' : '');
+    if (!form.checkValidity()) { form.classList.add('was-validated'); return; }
+    form.classList.remove('was-validated');
+    const btn = document.getElementById('add-user-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+    try {
+      const r = await fetch('/api/users', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          username: document.getElementById('inp-user-name').value.trim(),
+          password: pw,
+        }),
+      });
+      if (!checkAuth(r)) return;
+      const data = await r.json();
+      if (r.ok) {
+        showToast('Admin account created.', 'success');
+        form.reset();
+        loadUsers();
+      } else {
+        showToast('Error: ' + escHtml(data.error || 'Unknown error'), 'danger');
+      }
+    } catch (err) {
+      showToast('Request failed: ' + escHtml(err.message), 'danger');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'Add Admin';
+    }
+  }
+
   // ── Boot ──────────────────────────────────────────────────────────────────
 
   loadDevices();
+  loadUsers();
 </script>
 </body>
 </html>

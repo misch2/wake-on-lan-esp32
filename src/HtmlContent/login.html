@@ -22,9 +22,15 @@ R"HTML(
       <div id="err" class="alert alert-danger d-none" role="alert"></div>
       <form id="login-form" onsubmit="doLogin(event)" novalidate>
         <div class="mb-3">
+          <label class="form-label fw-semibold" for="inp-username">Username</label>
+          <input type="text" class="form-control" id="inp-username"
+            placeholder="Enter username" required autofocus autocomplete="username" />
+          <div class="invalid-feedback">Username is required.</div>
+        </div>
+        <div class="mb-3">
           <label class="form-label fw-semibold" for="inp-password">Password</label>
           <input type="password" class="form-control" id="inp-password"
-            placeholder="Enter password" required autofocus />
+            placeholder="Enter password" required autocomplete="current-password" />
           <div class="invalid-feedback">Password is required.</div>
         </div>
         <button type="submit" class="btn btn-primary w-100" id="login-btn">Login</button>
@@ -46,7 +52,10 @@ R"HTML(
       const r = await fetch('/api/login', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ password: document.getElementById('inp-password').value }),
+        body:    JSON.stringify({
+          username: document.getElementById('inp-username').value,
+          password: document.getElementById('inp-password').value,
+        }),
       });
       if (r.ok) {
         const params = new URLSearchParams(window.location.search);

@@ -23,17 +23,21 @@ void WebServerManager::begin() {
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
-bool WebServerManager::isAuthenticated(AsyncWebServerRequest* request) const {
+String WebServerManager::extractToken(AsyncWebServerRequest* request) const {
   const AsyncWebHeader* h = request->getHeader("Cookie");
-  if (!h) return false;
+  if (!h) return "";
   const String& cookies = h->value();
   const int idx = cookies.indexOf("wol_session=");
-  if (idx < 0) return false;
+  if (idx < 0) return "";
   String token = cookies.substring(idx + 12);  // 12 = strlen("wol_session=")
   const int end = token.indexOf(';');
   if (end >= 0) token = token.substring(0, end);
   token.trim();
-  return _authManager.validateSession(token);
+  return token;
+}
+
+bool WebServerManager::isAuthenticated(AsyncWebServerRequest* request) const {
+  return _authManager.validateSession(extractToken(request));
 }
 
 static void redirectToLogin(AsyncWebServerRequest* request) {
@@ -51,7 +55,7 @@ void WebServerManager::registerRoutes() {
   // ── GET /login ────────────────────────────────────────────────────────────
   _server.on("/login", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(200, "text/html", HTML_LOGIN); });
 
-  // ── POST /api/login  body: {"password":"…"} ───────────────────────────────
+  // ── POST /api/login  body: {"username":"…","password":"…"} ─────────────────
   _server.on(
       "/api/login", HTTP_POST, [](AsyncWebServerRequest* request) {}, nullptr,
       [this](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
@@ -63,14 +67,15 @@ void WebServerManager::registerRoutes() {
           return;
         }
 
+        const String username = doc["username"] | "";
         const String password = doc["password"] | "";
 
-        if (!_authManager.checkPassword(password)) {
-          request->send(401, "application/json", R"({"error":"Invalid password"})");
+        if (!_authManager.checkCredentials(username, password)) {
+          request->send(401, "application/json", R"({"error":"Invalid username or password"})");
           return;
         }
 
-        const String token = _authManager.createSession();
+        const String token = _authManager.createSession(username);
         AsyncWebServerResponse* resp = request->beginResponse(200, "application/json", R"({"status":"ok"})");
         resp->addHeader("Set-Cookie", "wol_session=" + token + "; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400");
         request->send(resp);
@@ -78,18 +83,7 @@ void WebServerManager::registerRoutes() {
 
   // ── POST /api/logout ──────────────────────────────────────────────────────
   _server.on("/api/logout", HTTP_POST, [this](AsyncWebServerRequest* request) {
-    const AsyncWebHeader* h = request->getHeader("Cookie");
-    if (h) {
-      const String& cookies = h->value();
-      const int idx = cookies.indexOf("wol_session=");
-      if (idx >= 0) {
-        String token = cookies.substring(idx + 12);
-        const int end = token.indexOf(';');
-        if (end >= 0) token = token.substring(0, end);
-        token.trim();
-        _authManager.destroySession(token);
-      }
-    }
+    _authManager.destroySession(extractToken(request));
     AsyncWebServerResponse* resp = request->beginResponse(200, "application/json", R"({"status":"ok"})");
     resp->addHeader("Set-Cookie", "wol_session=; Path=/; HttpOnly; Max-Age=0");
     request->send(resp);
@@ -189,6 +183,61 @@ void WebServerManager::registerRoutes() {
       [this](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
         if (index + len < total) return;
 
+        const String token = extractToken(request);
+        if (!_authManager.validateSession(token)) {
+          request->send(401, "application/json", R"({"error":"Unauthorized"})");
+          return;
+        }
+
+        JsonDocument doc;
+        if (deserializeJson(doc, data, len) != DeserializationError::Ok) {
+          request->send(400, "application/json", R"({"error":"Invalid JSON"})");
+          return;
+        }
+
+        const String current     = doc["current"]     | "";
+        const String newPassword = doc["newPassword"] | "";
+        const String username    = _authManager.getSessionUser(token);
+
+        if (!_authManager.checkCredentials(username, current)) {
+          request->send(403, "application/json", R"({"error":"Current password is incorrect"})");
+          return;
+        }
+
+        if (newPassword.length() < 4) {
+          request->send(400, "application/json", R"({"error":"New password must be at least 4 characters"})");
+          return;
+        }
+
+        if (!_authManager.changePassword(username, newPassword)) {
+          request->send(500, "application/json", R"({"error":"Failed to save password"})");
+          return;
+        }
+
+        request->send(200, "application/json", R"({"status":"ok"})");
+      });
+
+  // ── GET /api/users  (protected) ───────────────────────────────────────────
+  _server.on("/api/users", HTTP_GET, [this](AsyncWebServerRequest* request) {
+    if (!isAuthenticated(request)) {
+      request->send(401, "application/json", R"({"error":"Unauthorized"})");
+      return;
+    }
+    const auto users = _authManager.listUsers();
+    JsonDocument doc;
+    JsonArray arr = doc.to<JsonArray>();
+    for (const auto& u : users) arr.add(u);
+    String json;
+    serializeJson(doc, json);
+    request->send(200, "application/json", json);
+  });
+
+  // ── POST /api/users  body: {"username":"…","password":"…"}  (protected) ────
+  _server.on(
+      "/api/users", HTTP_POST, [](AsyncWebServerRequest* request) {}, nullptr,
+      [this](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+        if (index + len < total) return;
+
         if (!isAuthenticated(request)) {
           request->send(401, "application/json", R"({"error":"Unauthorized"})");
           return;
@@ -200,26 +249,56 @@ void WebServerManager::registerRoutes() {
           return;
         }
 
-        const String current = doc["current"] | "";
-        const String newPassword = doc["newPassword"] | "";
+        const String username = doc["username"] | "";
+        const String password = doc["password"] | "";
 
-        if (!_authManager.checkPassword(current)) {
-          request->send(403, "application/json", R"({"error":"Current password is incorrect"})");
+        if (username.isEmpty() || password.isEmpty()) {
+          request->send(400, "application/json", R"({"error":"Fields 'username' and 'password' are required"})");
           return;
         }
 
-        if (newPassword.length() < 4) {
-          request->send(400, "application/json", R"({"error":"New password must be at least 4 characters"})");
+        if (password.length() < 4) {
+          request->send(400, "application/json", R"({"error":"Password must be at least 4 characters"})");
           return;
         }
 
-        if (!_authManager.setPassword(newPassword)) {
-          request->send(500, "application/json", R"({"error":"Failed to save password"})");
+        if (!_authManager.addUser(username, password)) {
+          request->send(409, "application/json", R"({"error":"Username already exists"})");
           return;
         }
 
         request->send(200, "application/json", R"({"status":"ok"})");
       });
+
+  // ── DELETE /api/users?username=…  (protected) ────────────────────────────
+  _server.on("/api/users", HTTP_DELETE, [this](AsyncWebServerRequest* request) {
+    if (!isAuthenticated(request)) {
+      request->send(401, "application/json", R"({"error":"Unauthorized"})");
+      return;
+    }
+
+    if (!request->hasParam("username")) {
+      request->send(400, "application/json", R"({"error":"Missing 'username' query parameter"})");
+      return;
+    }
+
+    const String username = request->getParam("username")->value();
+
+    // Prevent an admin from deleting their own account while logged in
+    const String self = _authManager.getSessionUser(extractToken(request));
+    if (username == self) {
+      request->send(400, "application/json", R"({"error":"Cannot delete your own account"})");
+      return;
+    }
+
+    if (!_authManager.removeUser(username)) {
+      // Either not found or last account
+      request->send(400, "application/json", R"({"error":"Cannot remove user: not found or last account"})");
+      return;
+    }
+
+    request->send(200, "application/json", R"({"status":"ok"})");
+  });
 
   // ── POST /api/wake?mac=…  (public) ───────────────────────────────────────
   _server.on("/api/wake", HTTP_POST, [this](AsyncWebServerRequest* request) {
