@@ -2,6 +2,9 @@
 
 A small gadget that lets anyone on the local network wake up computers via a simple browser interface, hosted on minimal hardware.
 
+<img width="592" height="579" alt="image" src="https://github.com/user-attachments/assets/e744f7fb-c296-4658-bd8b-2727e69dcc5a" />
+
+
 ## Features
 
 - **Web UI** - one-click Wake-on-LAN from any device on the LAN (phone, tablet, PC)
@@ -52,8 +55,6 @@ pio device monitor
 
 WiFi credentials are stored in flash. On every subsequent boot the device connects automatically without showing the portal.
 
-> If you ever need to re-run the portal (e.g. to change networks), uncomment the `wm.resetSettings()` line in `main.cpp`, flash once, then comment it out again.
-
 ---
 
 ## Accessing the interface
@@ -83,7 +84,7 @@ On first boot an admin account is created automatically:
 
 You need two pieces of information per PC: its **MAC address** and optionally its **IP address** (required for the online/offline ping indicator).
 
-#### Finding the MAC address on Windows 11
+#### Finding the MAC and IP address on Windows 11
 
 1. Press **Win + R**, type `cmd`, press **Enter**
 2. Run:
@@ -93,24 +94,13 @@ You need two pieces of information per PC: its **MAC address** and optionally it
 3. Find the section for your network adapter (usually *Ethernet adapter* or *Wi-Fi*).  
    The **Physical Address** line shows the MAC address, e.g. `A1-B2-C3-D4-E5-F6`.  
    Enter it in the admin form as `A1:B2:C3:D4:E5:F6` (colons instead of dashes).
-
-#### Finding the IP address on Windows 11
-
-In the same `ipconfig /all` output, look for the **IPv4 Address** line in the same adapter section, e.g. `192.168.1.55`.
+4. Look for the **IPv4 Address** line in the same adapter section, e.g. `192.168.1.55`.
 
 Alternatively:
 1. Open **Settings → Network & Internet → (Ethernet or Wi-Fi) → Properties**
 2. Scroll down to the **IPv4 address** and **Physical address (MAC)** fields.
 
 > **Tip:** assign a static IP (or a DHCP reservation in your router) to each PC so the address never changes.
-
-### Managing admin accounts
-
-In the Admin page → *Admin Accounts* section you can:
-
-- See all existing admin usernames
-- Add a new admin (username + password, minimum 4 characters)
-- Remove an admin (the last account cannot be deleted, and you cannot delete your own account while logged in)
 
 ---
 
