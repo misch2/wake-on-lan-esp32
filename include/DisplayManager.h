@@ -7,9 +7,9 @@
  * Manages the SSD1306 72x40 OLED display (I2C, SCL=6, SDA=5).
  *
  * States and corresponding screens:
- *   Portal    – shown while WiFiManager captive portal is active
- *   Connected – shown during normal WOL server operation
- *   Waking    – briefly shown after a magic packet is dispatched, then
+ *   Portal    - shown while WiFiManager captive portal is active
+ *   Connected - shown during normal WOL server operation
+ *   Waking    - briefly shown after a magic packet is dispatched, then
  *               automatically reverts to Connected
  *
  * Call update() from loop() to handle timed state transitions.
@@ -30,7 +30,7 @@ class DisplayManager {
   /**
    * Briefly show a "Waking…" notification for the given device alias, then
    * automatically revert to the connected screen.
-   * Safe to call from an async (non-loop) context – state is buffered and the
+   * Safe to call from an async (non-loop) context - state is buffered and the
    * actual draw happens in update().
    */
   void showWaking(const char* alias);

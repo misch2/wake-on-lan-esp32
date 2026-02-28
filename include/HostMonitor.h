@@ -11,7 +11,7 @@
 /**
  * Periodically pings all configured devices with known IPs using the ESP-IDF
  * async ICMP ping API.  No FreeRTOS task management is required from user
- * code – esp_ping runs its own internal task.
+ * code - esp_ping runs its own internal task.
  *
  * The device list is supplied at runtime via begin(), allowing the list to be
  * refreshed (restart()) whenever it changes without rebooting the controller.
@@ -30,7 +30,7 @@ class HostMonitor {
   /**
    * Parse device IPs from `devices` and start a continuous ping session for
    * each device with a non-empty IP.  Call once after WiFi is associated.
-   * Calling begin() while sessions are already running is safe – it calls
+   * Calling begin() while sessions are already running is safe - it calls
    * stop() first.
    */
   void begin(const std::vector<Device>& devices);
@@ -52,7 +52,7 @@ class HostMonitor {
 
   /**
    * Register a callback invoked (from the esp_ping task) whenever any
-   * device's online status changes.  Keep it short – use it only to set
+   * device's online status changes.  Keep it short - use it only to set
    * a flag or call display.showXxx() which just sets _redraw = true.
    */
   void setOnStatusChange(std::function<void()> cb);

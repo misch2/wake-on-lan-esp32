@@ -29,13 +29,13 @@ void HostMonitor::begin(const std::vector<Device>& devices) {
 
     const String& ipStr = devices[i].ip;
     if (ipStr.isEmpty()) {
-      Serial.printf("[Ping] Device '%s' has no IP configured – skipping\n", devices[i].alias.c_str());
+      Serial.printf("[Ping] Device '%s' has no IP configured - skipping\n", devices[i].alias.c_str());
       continue;
     }
 
     ip_addr_t target;
     if (!ipaddr_aton(ipStr.c_str(), &target)) {
-      Serial.printf("[Ping] Invalid IP '%s' for device '%s' – skipping\n", ipStr.c_str(), devices[i].alias.c_str());
+      Serial.printf("[Ping] Invalid IP '%s' for device '%s' - skipping\n", ipStr.c_str(), devices[i].alias.c_str());
       continue;
     }
 

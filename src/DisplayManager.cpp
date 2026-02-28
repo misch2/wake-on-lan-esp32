@@ -91,7 +91,7 @@ void DisplayManager::drawWaking() {
 
   drawCentered(0, ">> Waking <<");
   _u8g2.drawHLine(0, 10, DISPLAY_WIDTH);
-  // Alias – truncate to fit DISPLAY_WIDTH px at ~5 px/char
+  // Alias - truncate to fit DISPLAY_WIDTH px at ~5 px/char
   char truncAlias[CHARS_PER_LINE + 1];
   truncate(truncAlias, _alias, sizeof(truncAlias));
   drawCentered(20, truncAlias);

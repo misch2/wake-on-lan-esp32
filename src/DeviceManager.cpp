@@ -9,12 +9,12 @@
 bool DeviceManager::begin() {
   // true = format the partition if mounting fails (first-boot initialisation)
   if (!LittleFS.begin(true)) {
-    Serial.println("[DevMgr] LittleFS mount failed – device list starts empty");
+    Serial.println("[DevMgr] LittleFS mount failed - device list starts empty");
     return false;
   }
 
   if (!LittleFS.exists(CONFIG_PATH)) {
-    Serial.println("[DevMgr] Config file not found – starting with empty device list");
+    Serial.println("[DevMgr] Config file not found - starting with empty device list");
     save();  // write an empty JSON array so the file exists for next boot
     return true;
   }
@@ -30,7 +30,7 @@ bool DeviceManager::begin() {
   f.close();
 
   if (err) {
-    Serial.printf("[DevMgr] JSON parse error: %s – device list starts empty\n", err.c_str());
+    Serial.printf("[DevMgr] JSON parse error: %s - device list starts empty\n", err.c_str());
     return false;
   }
 

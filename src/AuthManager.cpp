@@ -9,13 +9,13 @@
 
 bool AuthManager::begin() {
   if (!LittleFS.exists(CONFIG_PATH)) {
-    Serial.println("[Auth] No auth config – writing default password 'admin'");
+    Serial.println("[Auth] No auth config - writing default password 'admin'");
     return setPassword(DEFAULT_PASSWORD);
   }
 
   File f = LittleFS.open(CONFIG_PATH, "r");
   if (!f) {
-    Serial.println("[Auth] Cannot open auth config – resetting to default");
+    Serial.println("[Auth] Cannot open auth config - resetting to default");
     return setPassword(DEFAULT_PASSWORD);
   }
 
@@ -24,7 +24,7 @@ bool AuthManager::begin() {
   f.close();
 
   if (err || !doc["hash"].is<const char*>()) {
-    Serial.println("[Auth] Bad auth config – resetting to default");
+    Serial.println("[Auth] Bad auth config - resetting to default");
     return setPassword(DEFAULT_PASSWORD);
   }
 
@@ -57,7 +57,7 @@ bool AuthManager::setPassword(const String& newPassword) {
 String AuthManager::createSession() {
   pruneExpiredSessions();
   if (_sessions.size() >= MAX_SESSIONS) {
-    Serial.println("[Auth] Session table full – clearing all sessions");
+    Serial.println("[Auth] Session table full - clearing all sessions");
     _sessions.clear();
   }
 
@@ -93,7 +93,7 @@ void AuthManager::destroySession(const String& token) {
 String AuthManager::sha256hex(const String& input) {
   uint8_t digest[32];
 
-  // Use the generic mbedTLS MD API – compatible across ESP-IDF 4.x / 5.x
+  // Use the generic mbedTLS MD API - compatible across ESP-IDF 4.x / 5.x
   const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
   mbedtls_md(info,
              reinterpret_cast<const uint8_t*>(input.c_str()),

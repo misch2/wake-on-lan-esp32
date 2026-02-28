@@ -29,7 +29,7 @@ static void connectWiFi() {
   const bool connected = (strlen(WIFI_MANAGER_AP_PASS) > 0) ? wm.autoConnect(WIFI_MANAGER_AP_NAME, WIFI_MANAGER_AP_PASS) : wm.autoConnect(WIFI_MANAGER_AP_NAME);
 
   if (!connected) {
-    Serial.println("[WiFi] Failed to connect – restarting in 5 s");
+    Serial.println("[WiFi] Failed to connect - restarting in 5 s");
     delay(5000);
     ESP.restart();
   }
@@ -86,7 +86,7 @@ void setup() {
 
   // Restart HostMonitor whenever the device list changes via the admin page
   webServerManager.setOnDeviceListChanged([]() {
-    Serial.println("[Main] Device list changed – restarting HostMonitor");
+    Serial.println("[Main] Device list changed - restarting HostMonitor");
     hostMonitor.restart(deviceManager.devices());
   });
 

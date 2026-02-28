@@ -104,7 +104,7 @@ void WebServerManager::registerRoutes() {
     request->send(200, "text/html", HTML_ADMIN);
   });
 
-  // ── GET /api/devices  (public – used by main page too) ────────────────────
+  // ── GET /api/devices  (public - used by main page too) ────────────────────
   _server.on("/api/devices", HTTP_GET, [this](AsyncWebServerRequest* request) {
     const auto& devices = _deviceManager.devices();
     JsonDocument doc;

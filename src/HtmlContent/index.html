@@ -174,7 +174,7 @@ R"HTML(
       const data = await response.json();
       if (response.ok) {
         showToast('Magic packet sent to <strong>' + escHtml(alias) + '</strong>', 'success');
-        // Refresh sooner – device should appear online soon after WOL
+        // Refresh sooner - device should appear online soon after WOL
         scheduleRefresh(3);
       } else {
         showToast('Error: ' + escHtml(data.error || 'Unknown error'), 'danger');
