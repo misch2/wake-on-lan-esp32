@@ -80,8 +80,8 @@ void DisplayManager::drawConnected() {
 
   drawCentered(0, "Ready");
   _u8g2.drawHLine(0, 10, DISPLAY_WIDTH);
-  drawCentered(22, _ip);
-  drawCentered(30, "http://^ /");
+  drawCentered(22, "http://");
+  drawCentered(30, _ip);
 
   _u8g2.sendBuffer();
 }
