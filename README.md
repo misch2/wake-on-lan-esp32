@@ -46,6 +46,8 @@ pio device monitor
 
 WiFi credentials are stored in flash. On every subsequent boot the device connects automatically without showing the portal.
 
+If you ever need to reset WiFi credentials then short the GND pin with GPIO 10 and press the RESET button. WiFi credentials will be erased.
+
 ## Accessing the interface
 
 | URL | Description |
