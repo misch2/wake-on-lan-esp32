@@ -11,8 +11,6 @@ A small gadget that lets anyone on the local network wake up computers via a sim
 - **Admin interface** - add/remove devices, manage admin accounts, change passwords; protected by session cookie auth
 - **Multiple admin accounts** - add as many admin users as needed; each has their own login
 
----
-
 ## Hardware
 
 | Component | Details |
@@ -37,7 +35,6 @@ pio run -t upload
 # Monitor serial output
 pio device monitor
 ```
----
 
 ## First-time WiFi setup
 
@@ -49,8 +46,6 @@ pio device monitor
 
 WiFi credentials are stored in flash. On every subsequent boot the device connects automatically without showing the portal.
 
----
-
 ## Accessing the interface
 
 | URL | Description |
@@ -59,8 +54,6 @@ WiFi credentials are stored in flash. On every subsequent boot the device connec
 | `http://<IP>/admin` | Admin page - requires login |
 
 The IP address is shown on the OLED display after connecting. You can also find it in the serial monitor output (`[WOL] Open http://...`).
-
----
 
 ## Admin setup
 
@@ -77,6 +70,8 @@ On first boot an admin account is created automatically:
 ### Adding a device
 
 You need two pieces of information per PC: its **MAC address** and optionally its **IP address** (required for the online/offline ping indicator).
+
+---
 
 #### Finding the MAC and IP address on Windows 11
 
