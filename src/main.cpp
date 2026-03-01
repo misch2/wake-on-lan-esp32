@@ -14,6 +14,8 @@ static DisplayManager displayManager;
 static HostMonitor hostMonitor;
 static WebServerManager webServerManager(deviceManager, authManager);
 
+static char apName[16];  // "WOL-" + last 3 MAC octets, computed in setup()
+
 // ── WiFi ──────────────────────────────────────────────────────────────────────
 
 static void connectWiFi() {
@@ -33,9 +35,9 @@ static void connectWiFi() {
 
   wm.setConfigPortalTimeout(180);  // close portal after 3 min if nobody connects
 
-  Serial.printf("[WiFi] Starting WiFiManager portal '%s'\n", WIFI_MANAGER_AP_NAME);
+  Serial.printf("[WiFi] Starting WiFiManager portal '%s'\n", apName);
 
-  const bool connected = (strlen(WIFI_MANAGER_AP_PASS) > 0) ? wm.autoConnect(WIFI_MANAGER_AP_NAME, WIFI_MANAGER_AP_PASS) : wm.autoConnect(WIFI_MANAGER_AP_NAME);
+  const bool connected = (strlen(WIFI_MANAGER_AP_PASS) > 0) ? wm.autoConnect(apName, WIFI_MANAGER_AP_PASS) : wm.autoConnect(apName);
 
   if (!connected) {
     Serial.println("[WiFi] Failed to connect - restarting in 5 s");
@@ -67,8 +69,15 @@ void setup() {
 
   displayManager.begin();
 
+  // Derive AP name from last 3 MAC octets: "WOL-XXYYZZ"
+  {
+    String mac = WiFi.macAddress();
+    mac.replace(":", "");
+    snprintf(apName, sizeof(apName), "WOL-%s", mac.substring(6).c_str());
+  }
+
   // Show a boot/portal screen immediately (will be replaced once connected)
-  displayManager.showWiFiPortal(WIFI_MANAGER_AP_NAME);
+  displayManager.showWiFiPortal(apName);
   displayManager.update();
 
 #ifdef PIN_WIFI_RESET
