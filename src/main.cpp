@@ -19,8 +19,17 @@ static WebServerManager webServerManager(deviceManager, authManager);
 static void connectWiFi() {
   WiFiManager wm;
 
-  // Uncomment to erase stored credentials and force the portal on every boot:
-  // wm.resetSettings();
+#ifdef PIN_WIFI_RESET
+  if (digitalRead(PIN_WIFI_RESET) == LOW) {
+    Serial.println("WiFi reset triggered - starting config portal...");
+    wm.resetSettings();
+
+    displayManager.showWiFiReset();
+    displayManager.update();
+    delay(5000);
+    ESP.restart();
+  }
+#endif
 
   wm.setConfigPortalTimeout(180);  // close portal after 3 min if nobody connects
 
@@ -59,8 +68,12 @@ void setup() {
   displayManager.begin();
 
   // Show a boot/portal screen immediately (will be replaced once connected)
-  displayManager.showPortal(WIFI_MANAGER_AP_NAME);
+  displayManager.showWiFiPortal(WIFI_MANAGER_AP_NAME);
   displayManager.update();
+
+#ifdef PIN_WIFI_RESET
+  pinMode(PIN_WIFI_RESET, INPUT_PULLUP);
+#endif
 
   connectWiFi();
 

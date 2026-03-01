@@ -22,7 +22,9 @@ class DisplayManager {
   void begin();
 
   /** Show the WiFiManager captive portal screen. */
-  void showPortal(const char* apName);
+  void showWiFiPortal(const char* apName);
+
+  void showWiFiReset();
 
   /** Show the normal "ready" screen with SSID and IP address. */
   void showConnected(const char* ssid, const char* ip);
@@ -41,8 +43,8 @@ class DisplayManager {
  private:
   U8G2_SSD1306_72X40_ER_F_HW_I2C _u8g2;
 
-  enum class State { Portal, Connected, Waking };
-  volatile State _state = State::Portal;
+  enum class State { WiFiPortal, WiFiReset, WiFiConnected, WOLInAction };
+  volatile State _state = State::WiFiPortal;
   volatile bool _redraw = false;
   unsigned long _wakingUntil = 0;
 
@@ -51,8 +53,6 @@ class DisplayManager {
   // Display hardware constants
   static constexpr uint8_t DISPLAY_WIDTH = 72;
   static constexpr uint8_t DISPLAY_HEIGHT = 40;
-  static constexpr uint8_t SCL_PIN = 6;
-  static constexpr uint8_t SDA_PIN = 5;
   // Approximate max chars per line at font width 5 px
   static constexpr uint8_t CHARS_PER_LINE = DISPLAY_WIDTH / 5;
 
@@ -62,8 +62,9 @@ class DisplayManager {
   char _apName[33] = {};
   char _alias[33] = {};
 
-  void drawPortal();
-  void drawConnected();
+  void drawWiFiPortal();
+  void drawWiFiReset();
+  void drawWiFiConnected();
   void drawWaking();
   void drawCentered(uint8_t y, const char* str);
   void truncate(char* dst, const char* src, size_t maxLen);

@@ -7,7 +7,15 @@
 //  U8X8_PIN_NONE    : no hardware reset pin
 //  6                : SCL
 //  5                : SDA
-DisplayManager::DisplayManager() : _u8g2(U8G2_R0, U8X8_PIN_NONE, SCL_PIN, SDA_PIN) {}
+DisplayManager::DisplayManager()
+    : _u8g2(U8G2_R0,
+#ifdef PIN_OLED_RESET
+            PIN_OLED_RESET,
+#else
+            U8X8_PIN_NONE,
+#endif
+            PIN_OLED_SCL, PIN_OLED_SDA) {
+}
 
 // ── Public ────────────────────────────────────────────────────────────────────
 
@@ -18,30 +26,35 @@ void DisplayManager::begin() {
   Serial.printf("[OLED] Display initialised (%dx%d)\n", DISPLAY_WIDTH, DISPLAY_HEIGHT);
 }
 
-void DisplayManager::showPortal(const char* apName) {
+void DisplayManager::showWiFiPortal(const char* apName) {
   truncate(_apName, apName, sizeof(_apName));
-  _state = State::Portal;
+  _state = State::WiFiPortal;
+  _redraw = true;
+}
+
+void DisplayManager::showWiFiReset() {
+  _state = State::WiFiReset;
   _redraw = true;
 }
 
 void DisplayManager::showConnected(const char* ssid, const char* ip) {
   truncate(_ssid, ssid, sizeof(_ssid));
   truncate(_ip, ip, sizeof(_ip));
-  _state = State::Connected;
+  _state = State::WiFiConnected;
   _redraw = true;
 }
 
 void DisplayManager::showWaking(const char* alias) {
   truncate(_alias, alias, sizeof(_alias));
   _wakingUntil = millis() + WAKING_DURATION_MS;
-  _state = State::Waking;
+  _state = State::WOLInAction;
   _redraw = true;
 }
 
 void DisplayManager::update() {
   // Revert Waking → Connected after timeout
-  if (_state == State::Waking && millis() >= _wakingUntil) {
-    _state = State::Connected;
+  if (_state == State::WOLInAction && millis() >= _wakingUntil) {
+    _state = State::WiFiConnected;
     _redraw = true;
   }
 
@@ -49,13 +62,16 @@ void DisplayManager::update() {
   _redraw = false;
 
   switch (_state) {
-    case State::Portal:
-      drawPortal();
+    case State::WiFiPortal:
+      drawWiFiPortal();
       break;
-    case State::Connected:
-      drawConnected();
+    case State::WiFiReset:
+      drawWiFiReset();
       break;
-    case State::Waking:
+    case State::WiFiConnected:
+      drawWiFiConnected();
+      break;
+    case State::WOLInAction:
       drawWaking();
       break;
   }
@@ -63,7 +79,7 @@ void DisplayManager::update() {
 
 // ── Private drawing helpers ───────────────────────────────────────────────────
 
-void DisplayManager::drawPortal() {
+void DisplayManager::drawWiFiPortal() {
   _u8g2.clearBuffer();
 
   drawCentered(0, "WiFi Setup");
@@ -75,7 +91,19 @@ void DisplayManager::drawPortal() {
   _u8g2.sendBuffer();
 }
 
-void DisplayManager::drawConnected() {
+void DisplayManager::drawWiFiReset() {
+  _u8g2.clearBuffer();
+
+  drawCentered(0, "WiFi Cleared");
+  _u8g2.drawHLine(0, 10, DISPLAY_WIDTH);
+  drawCentered(13, "Resetting");
+  drawCentered(23, "in");
+  drawCentered(33, "5 seconds...");
+
+  _u8g2.sendBuffer();
+}
+
+void DisplayManager::drawWiFiConnected() {
   _u8g2.clearBuffer();
 
   drawCentered(0, "Ready");
