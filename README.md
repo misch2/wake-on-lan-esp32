@@ -38,8 +38,8 @@ pio device monitor
 
 ## First-time WiFi setup
 
-1. Power on the ESP32. The OLED (if connected) shows **"Connect to WOL-Setup"**.
-2. On your phone or laptop, open WiFi settings and connect to the open network **`WOL-Setup`**.
+1. Power on the ESP32. The OLED (if connected) shows **"Connect to WOL-XXYYZZ"** where XXYYZZ is based on the ESP32 WiFi MAC address.
+2. On your phone or laptop, open WiFi settings and connect to the open network **`WOL-XXYYZZ`**.
 3. A captive portal page opens automatically (if it doesn't, navigate to **192.168.4.1**).
 4. Select your home/office WiFi network, enter the password, and tap **Save**.
 5. The ESP32 connects, the display shows the assigned IP address (e.g. `192.168.1.42`), and the portal closes.
