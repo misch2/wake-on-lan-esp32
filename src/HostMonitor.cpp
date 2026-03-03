@@ -6,17 +6,13 @@ HostMonitor::HostMonitor() {}
 
 HostMonitor::~HostMonitor() { stop(); }
 
-// ── Public ────────────────────────────────────────────────────────────────────
-
 void HostMonitor::begin(const std::vector<Device>& devices) {
-  // Clean up any existing sessions first
   stop();
 
   const size_t n = devices.size();
   if (n == 0) return;
 
-  // Pre-allocate all vectors before creating sessions so that no reallocation
-  // happens while the ping callbacks hold pointers into _ctx.
+  // Pre-allocate before creating sessions - ping callbacks hold pointers into _ctx.
   _online.assign(n, 0);
   _handles.assign(n, nullptr);
   _ctx.resize(n);
@@ -87,11 +83,10 @@ bool HostMonitor::isOnline(size_t index) const {
 
 void HostMonitor::setOnStatusChange(std::function<void()> cb) { _onStatusChange = cb; }
 
-// ── Private ───────────────────────────────────────────────────────────────────
 
 void HostMonitor::setOnline(size_t index, bool newState) {
   const uint8_t next = newState ? 1 : 0;
-  if (_online[index] == next) return;  // no change, skip callback
+  if (_online[index] == next) return;
   _online[index] = next;
   Serial.printf("[Ping] '%s' is now %s\n", _aliases[index].c_str(), newState ? "ONLINE" : "OFFLINE");
   if (_onStatusChange) _onStatusChange();
