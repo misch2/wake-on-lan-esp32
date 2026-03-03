@@ -14,9 +14,7 @@ static DisplayManager displayManager;
 static HostMonitor hostMonitor;
 static WebServerManager webServerManager(deviceManager, authManager);
 
-static char apName[16];  // "WOL-" + last 3 MAC octets, computed in setup()
-
-// ── WiFi ──────────────────────────────────────────────────────────────────────
+static char apName[16];
 
 static void connectWiFi() {
   WiFiManager wm;
@@ -33,7 +31,7 @@ static void connectWiFi() {
   }
 #endif
 
-  wm.setConfigPortalTimeout(180);  // close portal after 3 min if nobody connects
+  wm.setConfigPortalTimeout(180);
 
   Serial.printf("[WiFi] Starting WiFiManager portal '%s'\n", apName);
 
@@ -45,8 +43,7 @@ static void connectWiFi() {
     ESP.restart();
   }
 
-  // Explicitly stop the WiFiManager web server to release the port-80 socket
-  // before AsyncTCP tries to bind it.
+  // Stop WiFiManager's web server to free port 80 before AsyncTCP binds it.
   wm.stopWebPortal();
   delay(200);
 
@@ -55,29 +52,26 @@ static void connectWiFi() {
   Serial.printf("[WiFi] Gateway:     %s\n", WiFi.gatewayIP().toString().c_str());
 }
 
-// ── Arduino entry points ──────────────────────────────────────────────────────
+// Arduino entry points
 
 void setup() {
   Serial.begin(115200);
-  delay(200);  // allow USB serial to enumerate
+  delay(200);  // let USB serial enumerate
 
   Serial.println("\n=== Wake-on-LAN Controller ===");
 
-  // Mount LittleFS and load persistent data (device list + auth config)
   deviceManager.begin();
   authManager.begin();
 
   displayManager.begin();
 
-  // Derive AP name from last 3 MAC octets: "WOL-XXYYZZ"
   {
-    WiFi.mode(WIFI_STA);  // must init WiFi before MAC is available
+    WiFi.mode(WIFI_STA);  // init WiFi before reading MAC
     String mac = WiFi.macAddress();
     mac.replace(":", "");
     snprintf(apName, sizeof(apName), "WOL-%s", mac.substring(6).c_str());
   }
 
-  // Show a boot/portal screen immediately (will be replaced once connected)
   displayManager.showWiFiPortal(apName);
   displayManager.update();
 
@@ -87,27 +81,24 @@ void setup() {
 
   connectWiFi();
 
-  // Small delay to let WiFiManager's synchronous WebServer fully release its
-  // port-80 socket in the lwIP stack, avoiding the AsyncTCP "bind error: -8"
-  // race condition on startup.
+  // Let lwIP fully release WiFiManager's port-80 socket (avoids AsyncTCP
+  // "bind error: -8" race on startup).
   delay(200);
 
   displayManager.showConnected(WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
   displayManager.update();
 
-  // ── HostMonitor ──────────────────────────────────────────────────────────
+  // HostMonitor
   hostMonitor.begin(deviceManager.devices());
 
-  // ── Wire the WOL notification to the display ──────────────────────────────
+  // Wire the WOL notification to the display
   webServerManager.setOnWakeCallback([](const char* alias) {
     displayManager.showWaking(alias);
     displayManager.update();
   });
 
-  // Provide online status to the /api/devices endpoint
   webServerManager.setGetOnlineStatusCallback([](size_t index) { return hostMonitor.isOnline(index); });
 
-  // Restart HostMonitor whenever the device list changes via the admin page
   webServerManager.setOnDeviceListChanged([]() {
     Serial.println("[Main] Device list changed - restarting HostMonitor");
     hostMonitor.restart(deviceManager.devices());
@@ -119,7 +110,4 @@ void setup() {
   Serial.printf("[WOL] Admin: http://%s/admin\n", WiFi.localIP().toString().c_str());
 }
 
-void loop() {
-  // Drive display state transitions (e.g. revert Waking → Connected after timeout)
-  displayManager.update();
-}
+void loop() { displayManager.update(); }

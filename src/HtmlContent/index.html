@@ -68,7 +68,7 @@ R"HTML(
   let secondsLeft = REFRESH_INTERVAL_S;
   let initialLoad = true;
 
-  // ── Data fetching ──────────────────────────────────────────────────────────
+  // Data fetching
 
   async function loadDevices() {
     try {
@@ -116,7 +116,7 @@ R"HTML(
     refreshTimer = setTimeout(loadDevices, secs * 1000);
   }
 
-  // ── Full initial render ────────────────────────────────────────────────────
+  // Full initial render
 
   function renderDevices(devices) {
     const list = document.getElementById('device-list');
@@ -156,7 +156,7 @@ R"HTML(
     `).join('');
   }
 
-  // ── Incremental status-only update (avoids full re-render flicker) ─────────
+  // Incremental status-only update (avoids full re-render flicker)
 
   function updateStatuses(devices) {
     devices.forEach((d, idx) => {
@@ -171,7 +171,7 @@ R"HTML(
     });
   }
 
-  // ── Wake action ────────────────────────────────────────────────────────────
+  // Wake action
 
   async function wakeDevice(btn, mac, alias) {
     btn.disabled = true;
@@ -194,7 +194,7 @@ R"HTML(
     }
   }
 
-  // ── Toast helper ───────────────────────────────────────────────────────────
+  // Toast helper
 
   function showToast(message, type) {
     const id = 'toast-' + Date.now();
@@ -212,13 +212,13 @@ R"HTML(
     el.addEventListener('hidden.bs.toast', () => el.remove());
   }
 
-  // ── XSS helpers ───────────────────────────────────────────────────────────
+  // XSS helpers
 
   const _escEl = document.createElement('span');
   function escHtml(s) { _escEl.textContent = String(s); return _escEl.innerHTML; }
   function escAttr(s) { return String(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
-  // ── Boot ───────────────────────────────────────────────────────────────────
+  // Boot
 
   loadDevices();
 </script>

@@ -2,11 +2,6 @@
 
 #include <cstring>
 
-// ── Constructor ───────────────────────────────────────────────────────────────
-//  U8G2_R0          : 0° rotation
-//  U8X8_PIN_NONE    : no hardware reset pin
-//  6                : SCL
-//  5                : SDA
 DisplayManager::DisplayManager()
     : _u8g2(U8G2_R0,
 #ifdef PIN_OLED_RESET
@@ -17,12 +12,10 @@ DisplayManager::DisplayManager()
             PIN_OLED_SCL, PIN_OLED_SDA) {
 }
 
-// ── Public ────────────────────────────────────────────────────────────────────
-
 void DisplayManager::begin() {
   _u8g2.begin();
   _u8g2.setFont(u8g2_font_5x7_tf);
-  _u8g2.setFontPosTop();  // Y coordinates refer to the top of the glyph
+  _u8g2.setFontPosTop();
   Serial.printf("[OLED] Display initialised (%dx%d)\n", DISPLAY_WIDTH, DISPLAY_HEIGHT);
 }
 
@@ -52,7 +45,6 @@ void DisplayManager::showWaking(const char* alias) {
 }
 
 void DisplayManager::update() {
-  // Revert Waking → Connected after timeout
   if (_state == State::WOLInAction && millis() >= _wakingUntil) {
     _state = State::WiFiConnected;
     _redraw = true;
@@ -76,8 +68,6 @@ void DisplayManager::update() {
       break;
   }
 }
-
-// ── Private drawing helpers ───────────────────────────────────────────────────
 
 void DisplayManager::drawWiFiPortal() {
   _u8g2.clearBuffer();

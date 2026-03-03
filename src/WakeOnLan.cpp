@@ -6,7 +6,7 @@ namespace {
 constexpr uint16_t WOL_PORT = 9;
 constexpr size_t MAC_BYTES = 6;
 constexpr size_t MAC_REPETITIONS = 16;
-constexpr size_t MAGIC_PKT_LEN = MAC_BYTES + MAC_BYTES * MAC_REPETITIONS;  // 102
+constexpr size_t MAGIC_PKT_LEN = MAC_BYTES + MAC_BYTES * MAC_REPETITIONS;
 }  // namespace
 
 bool WakeOnLan::wake(const char* macAddress) {
@@ -31,7 +31,6 @@ bool WakeOnLan::wake(const char* macAddress) {
 }
 
 bool WakeOnLan::parseMac(const char* macStr, uint8_t* outMac) {
-  // Expect exactly "XX:XX:XX:XX:XX:XX" (17 chars)
   if (strlen(macStr) != 17) return false;
 
   for (size_t i = 0; i < MAC_BYTES; i++) {
@@ -39,8 +38,6 @@ bool WakeOnLan::parseMac(const char* macStr, uint8_t* outMac) {
     if (!isxdigit((unsigned char)pos[0]) || !isxdigit((unsigned char)pos[1])) return false;
     char hexByte[3] = {pos[0], pos[1], '\0'};
     outMac[i] = static_cast<uint8_t>(strtol(hexByte, nullptr, 16));
-
-    // Validate separator between bytes (skip check after last byte)
     if (i < MAC_BYTES - 1 && pos[2] != ':') return false;
   }
   return true;

@@ -4,18 +4,15 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
-// ── Public ────────────────────────────────────────────────────────────────────
-
 bool DeviceManager::begin() {
-  // true = format the partition if mounting fails (first-boot initialisation)
-  if (!LittleFS.begin(true)) {
+  if (!LittleFS.begin(true)) {  // format on first-boot
     Serial.println("[DevMgr] LittleFS mount failed - device list starts empty");
     return false;
   }
 
   if (!LittleFS.exists(CONFIG_PATH)) {
     Serial.println("[DevMgr] Config file not found - starting with empty device list");
-    save();  // write an empty JSON array so the file exists for next boot
+    save();
     return true;
   }
 
@@ -37,8 +34,8 @@ bool DeviceManager::begin() {
   _devices.clear();
   for (JsonObject obj : doc.as<JsonArray>()) {
     const String alias = obj["alias"] | "";
-    const String mac   = obj["mac"]   | "";
-    const String ip    = obj["ip"]    | "";
+    const String mac = obj["mac"] | "";
+    const String ip = obj["ip"] | "";
     if (alias.length() > 0 && mac.length() > 0) {
       _devices.push_back({alias, mac, ip});
     }
@@ -54,8 +51,8 @@ bool DeviceManager::save() const {
   for (const auto& d : _devices) {
     JsonObject obj = arr.add<JsonObject>();
     obj["alias"] = d.alias;
-    obj["mac"]   = d.mac;
-    obj["ip"]    = d.ip;
+    obj["mac"] = d.mac;
+    obj["ip"] = d.ip;
   }
 
   File f = LittleFS.open(CONFIG_PATH, "w");

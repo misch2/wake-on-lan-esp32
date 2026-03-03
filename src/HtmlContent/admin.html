@@ -27,7 +27,7 @@ R"HTML(
 <div class="container py-4" style="max-width:860px">
   <div id="alert-area"></div>
 
-  <!-- ── Device table ─────────────────────────────────────────────────── -->
+  <!-- Device table -->
   <div class="card shadow-sm mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
       <h5 class="mb-0">Configured Devices</h5>
@@ -54,7 +54,7 @@ R"HTML(
     </div>
   </div>
 
-  <!-- ── Add device form ──────────────────────────────────────────────── -->
+  <!-- Add device form -->
   <div class="card shadow-sm mb-4">
     <div class="card-header"><h5 class="mb-0">Add Device</h5></div>
     <div class="card-body">
@@ -87,7 +87,7 @@ R"HTML(
     </div>
   </div>
 
-  <!-- ── Manage admins ────────────────────────────────────────────────── -->
+  <!-- Manage admins -->
   <div class="card shadow-sm mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
       <h5 class="mb-0">&#128100; Admin Accounts</h5>
@@ -136,7 +136,7 @@ R"HTML(
     </div>
   </div>
 
-  <!-- ── Change password ───────────────────────────────────────────────── -->
+  <!-- Change password -->
   <div class="card shadow-sm">
     <div class="card-header"><h5 class="mb-0">&#128274; Change Password</h5></div>
     <div class="card-body">
@@ -171,7 +171,7 @@ R"HTML(
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-  // ── Auth helpers ─────────────────────────────────────────────────────────
+  // Auth helpers
   function checkAuth(r) {
     if (r.status === 401) { window.location.href = '/login'; return false; }
     return true;
@@ -181,7 +181,7 @@ R"HTML(
     window.location.href = '/login';
   }
 
-  // ── Fetch & render device table ──────────────────────────────────────────
+  // Fetch & render device table
 
   async function loadDevices() {
     try {
@@ -215,7 +215,7 @@ R"HTML(
     }
   }
 
-  // ── Delete a device ──────────────────────────────────────────────────────
+  // Delete a device
 
   async function deleteDevice(mac, alias) {
     if (!confirm('Remove "' + alias + '" from the list?\nThis cannot be undone.')) return;
@@ -234,7 +234,7 @@ R"HTML(
     }
   }
 
-  // ── Add a device ─────────────────────────────────────────────────────────
+  // Add a device
 
   async function addDevice(e) {
     e.preventDefault();
@@ -273,7 +273,7 @@ R"HTML(
     }
   }
 
-  // ── Change password ───────────────────────────────────────────────────────
+  // Change password
 
   async function changePassword(e) {
     e.preventDefault();
@@ -311,7 +311,7 @@ R"HTML(
     }
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
+  // Helpers
 
   function showAlert(msg, type) {
     document.getElementById('alert-area').innerHTML =
@@ -342,7 +342,7 @@ R"HTML(
   function escHtml(s)  { _escEl.textContent = String(s); return _escEl.innerHTML; }
   function escAttr(s) { return String(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
-  // ── Admin user management ─────────────────────────────────────────────────
+  // Admin user management
 
   async function loadUsers() {
     try {
@@ -425,7 +425,7 @@ R"HTML(
     }
   }
 
-  // ── Boot ──────────────────────────────────────────────────────────────────
+  // Boot
 
   loadDevices();
   loadUsers();

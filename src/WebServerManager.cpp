@@ -21,7 +21,7 @@ void WebServerManager::begin() {
   Serial.printf("[HTTP] Web server started on port %d\n", WEB_SERVER_PORT);
 }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
+// Private helpers
 
 String WebServerManager::extractToken(AsyncWebServerRequest* request) const {
   const AsyncWebHeader* h = request->getHeader("Cookie");
@@ -29,16 +29,14 @@ String WebServerManager::extractToken(AsyncWebServerRequest* request) const {
   const String& cookies = h->value();
   const int idx = cookies.indexOf("wol_session=");
   if (idx < 0) return "";
-  String token = cookies.substring(idx + 12);  // 12 = strlen("wol_session=")
+  String token = cookies.substring(idx + 12);
   const int end = token.indexOf(';');
   if (end >= 0) token = token.substring(0, end);
   token.trim();
   return token;
 }
 
-bool WebServerManager::isAuthenticated(AsyncWebServerRequest* request) const {
-  return _authManager.validateSession(extractToken(request));
-}
+bool WebServerManager::isAuthenticated(AsyncWebServerRequest* request) const { return _authManager.validateSession(extractToken(request)); }
 
 static void redirectToLogin(AsyncWebServerRequest* request) {
   AsyncWebServerResponse* resp = request->beginResponse(302);
@@ -46,20 +44,20 @@ static void redirectToLogin(AsyncWebServerRequest* request) {
   request->send(resp);
 }
 
-// ── Routes ────────────────────────────────────────────────────────────────────
+// Routes
 
 void WebServerManager::registerRoutes() {
-  // ── GET / ─────────────────────────────────────────────────────────────────
+  // GET /
   _server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
     String html = HTML_CONTENT;
     html.replace("{{GIT_HASH}}", GIT_HASH);
     request->send(200, "text/html", html);
   });
 
-  // ── GET /login ────────────────────────────────────────────────────────────
+  // GET /login
   _server.on("/login", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(200, "text/html", HTML_LOGIN); });
 
-  // ── POST /api/login  body: {"username":"…","password":"…"} ─────────────────
+  // POST /api/login
   _server.on(
       "/api/login", HTTP_POST, [](AsyncWebServerRequest* request) {}, nullptr,
       [this](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
@@ -85,7 +83,7 @@ void WebServerManager::registerRoutes() {
         request->send(resp);
       });
 
-  // ── POST /api/logout ──────────────────────────────────────────────────────
+  // POST /api/logout
   _server.on("/api/logout", HTTP_POST, [this](AsyncWebServerRequest* request) {
     _authManager.destroySession(extractToken(request));
     AsyncWebServerResponse* resp = request->beginResponse(200, "application/json", R"({"status":"ok"})");
@@ -93,7 +91,7 @@ void WebServerManager::registerRoutes() {
     request->send(resp);
   });
 
-  // ── GET /admin  (protected) ───────────────────────────────────────────────
+  // GET /admin (protected)
   _server.on("/admin", HTTP_GET, [this](AsyncWebServerRequest* request) {
     if (!isAuthenticated(request)) {
       redirectToLogin(request);
@@ -102,7 +100,7 @@ void WebServerManager::registerRoutes() {
     request->send(200, "text/html", HTML_ADMIN);
   });
 
-  // ── GET /api/devices  (public - used by main page too) ────────────────────
+  // GET /api/devices (public)
   _server.on("/api/devices", HTTP_GET, [this](AsyncWebServerRequest* request) {
     const auto& devices = _deviceManager.devices();
     JsonDocument doc;
@@ -121,7 +119,7 @@ void WebServerManager::registerRoutes() {
     request->send(200, "application/json", json);
   });
 
-  // ── POST /api/devices  body: {"alias":"…","mac":"…","ip":"…"}  (protected) ─
+  // POST /api/devices (protected)
   _server.on(
       "/api/devices", HTTP_POST, [](AsyncWebServerRequest* request) {}, nullptr,
       [this](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
@@ -157,7 +155,7 @@ void WebServerManager::registerRoutes() {
         request->send(200, "application/json", R"({"status":"ok"})");
       });
 
-  // ── DELETE /api/devices?mac=…  (protected) ───────────────────────────────
+  // DELETE /api/devices (protected)
   _server.on("/api/devices", HTTP_DELETE, [this](AsyncWebServerRequest* request) {
     if (!isAuthenticated(request)) {
       request->send(401, "application/json", R"({"error":"Unauthorized"})");
@@ -181,7 +179,7 @@ void WebServerManager::registerRoutes() {
     request->send(200, "application/json", R"({"status":"ok"})");
   });
 
-  // ── POST /api/password  body: {"current":"…","newPassword":"…"}  (protected)
+  // POST /api/password (protected)
   _server.on(
       "/api/password", HTTP_POST, [](AsyncWebServerRequest* request) {}, nullptr,
       [this](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
@@ -199,9 +197,9 @@ void WebServerManager::registerRoutes() {
           return;
         }
 
-        const String current     = doc["current"]     | "";
+        const String current = doc["current"] | "";
         const String newPassword = doc["newPassword"] | "";
-        const String username    = _authManager.getSessionUser(token);
+        const String username = _authManager.getSessionUser(token);
 
         if (!_authManager.checkCredentials(username, current)) {
           request->send(403, "application/json", R"({"error":"Current password is incorrect"})");
@@ -221,7 +219,7 @@ void WebServerManager::registerRoutes() {
         request->send(200, "application/json", R"({"status":"ok"})");
       });
 
-  // ── GET /api/users  (protected) ───────────────────────────────────────────
+  // GET /api/users (protected)
   _server.on("/api/users", HTTP_GET, [this](AsyncWebServerRequest* request) {
     if (!isAuthenticated(request)) {
       request->send(401, "application/json", R"({"error":"Unauthorized"})");
@@ -236,7 +234,7 @@ void WebServerManager::registerRoutes() {
     request->send(200, "application/json", json);
   });
 
-  // ── POST /api/users  body: {"username":"…","password":"…"}  (protected) ────
+  // POST /api/users (protected)
   _server.on(
       "/api/users", HTTP_POST, [](AsyncWebServerRequest* request) {}, nullptr,
       [this](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
@@ -274,7 +272,7 @@ void WebServerManager::registerRoutes() {
         request->send(200, "application/json", R"({"status":"ok"})");
       });
 
-  // ── DELETE /api/users?username=…  (protected) ────────────────────────────
+  // DELETE /api/users (protected)
   _server.on("/api/users", HTTP_DELETE, [this](AsyncWebServerRequest* request) {
     if (!isAuthenticated(request)) {
       request->send(401, "application/json", R"({"error":"Unauthorized"})");
@@ -288,7 +286,6 @@ void WebServerManager::registerRoutes() {
 
     const String username = request->getParam("username")->value();
 
-    // Prevent an admin from deleting their own account while logged in
     const String self = _authManager.getSessionUser(extractToken(request));
     if (username == self) {
       request->send(400, "application/json", R"({"error":"Cannot delete your own account"})");
@@ -296,7 +293,6 @@ void WebServerManager::registerRoutes() {
     }
 
     if (!_authManager.removeUser(username)) {
-      // Either not found or last account
       request->send(400, "application/json", R"({"error":"Cannot remove user: not found or last account"})");
       return;
     }
@@ -304,7 +300,7 @@ void WebServerManager::registerRoutes() {
     request->send(200, "application/json", R"({"status":"ok"})");
   });
 
-  // ── POST /api/wake?mac=…  (public) ───────────────────────────────────────
+  // POST /api/wake (public)
   _server.on("/api/wake", HTTP_POST, [this](AsyncWebServerRequest* request) {
     if (!request->hasParam("mac")) {
       request->send(400, "application/json", R"({"error":"Missing 'mac' query parameter"})");
@@ -328,6 +324,5 @@ void WebServerManager::registerRoutes() {
     }
   });
 
-  // ── 404 ───────────────────────────────────────────────────────────────────
   _server.onNotFound([](AsyncWebServerRequest* request) { request->send(404, "text/plain", "Not Found"); });
 }

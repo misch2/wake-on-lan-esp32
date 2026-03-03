@@ -3,11 +3,10 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <LittleFS.h>
-#include <mbedtls/md.h>   // generic message-digest API, stable across ESP-IDF versions
+#include <mbedtls/md.h>
 
-// ── Public ────────────────────────────────────────────────────────────────────
+// Public
 
-// Helper used in begin() to create the default account with a fresh salt.
 static void makeDefaultUser(std::map<String, AuthManager::UserRecord>& users) {
   const String salt = AuthManager::generateSalt();
   users[AuthManager::DEFAULT_USERNAME] = {AuthManager::hashPassword(salt, AuthManager::DEFAULT_PASSWORD), salt};
@@ -37,7 +36,7 @@ bool AuthManager::begin() {
     return save();
   }
 
-  // Migrate legacy single-user format: {"hash":"..."} (no salt - mark as legacy)
+  // Migrate legacy single-user format: {"hash":"..."}
   if (doc["hash"].is<const char*>() && !doc["users"].is<JsonArray>()) {
     Serial.println("[Auth] Migrating legacy auth config to multi-user format");
     _users.clear();
@@ -45,7 +44,6 @@ bool AuthManager::begin() {
     return save();
   }
 
-  // Current multi-user format: {"users":[{"username":"...","hash":"...","salt":"..."}]}
   if (!doc["users"].is<JsonArray>()) {
     Serial.println("[Auth] Unknown auth config format - resetting to default");
     makeDefaultUser(_users);
@@ -55,8 +53,8 @@ bool AuthManager::begin() {
   _users.clear();
   for (JsonObject u : doc["users"].as<JsonArray>()) {
     const String uname = u["username"] | "";
-    const String hash  = u["hash"]     | "";
-    const String salt  = u["salt"]     | "";  // empty for legacy unsalted entries
+    const String hash = u["hash"] | "";
+    const String salt = u["salt"] | "";
     if (!uname.isEmpty() && !hash.isEmpty()) {
       _users[uname] = {hash, salt};
     }
@@ -73,37 +71,32 @@ bool AuthManager::begin() {
 }
 
 bool AuthManager::checkCredentials(const String& username, const String& password) {
-  // ── Lockout check ──────────────────────────────────────────────────────────
   const auto lockIt = _failedLogins.find(username);
   if (lockIt != _failedLogins.end() && lockIt->second.count >= MAX_FAILED_LOGINS) {
     if ((millis() - lockIt->second.firstFailAt) < LOCKOUT_DURATION_MS) {
       Serial.printf("[Auth] Login blocked for '%s' - too many failures\n", username.c_str());
-      return false;  // still locked out
+      return false;
     }
-    _failedLogins.erase(lockIt);  // lockout period expired - reset
+    _failedLogins.erase(lockIt);
   }
 
-  // ── Credential check ───────────────────────────────────────────────────────
   const auto it = _users.find(username);
   if (it == _users.end()) {
-    trackFailure(username);  // prevent username-enumeration via timing difference
+    trackFailure(username);  // also track unknown usernames to prevent timing-based enumeration
     return false;
   }
 
   const bool legacy = it->second.salt.isEmpty();
-  const bool valid  = legacy
-      ? (sha256hex(password)                       == it->second.hash)  // old unsalted
-      : (hashPassword(it->second.salt, password)   == it->second.hash); // current
+  const bool valid = legacy ? (sha256hex(password) == it->second.hash) : (hashPassword(it->second.salt, password) == it->second.hash);
 
   if (!valid) {
     trackFailure(username);
     return false;
   }
 
-  // Success: reset failure counter
   _failedLogins.erase(username);
 
-  // Transparently upgrade legacy unsalted hash to salted one
+  // Upgrade legacy unsalted hash to salted on successful login
   if (legacy) {
     Serial.printf("[Auth] Upgrading legacy password hash for '%s' to salted SHA-256\n", username.c_str());
     const String newSalt = generateSalt();
@@ -122,7 +115,6 @@ String AuthManager::createSession(const String& username) {
     _sessions.clear();
   }
 
-  // 128-bit token as 32 lowercase hex characters
   String token;
   token.reserve(32);
   for (int i = 0; i < 4; i++) {
@@ -161,7 +153,7 @@ std::vector<String> AuthManager::listUsers() const {
   for (const auto& kv : _users) {
     out.push_back(kv.first);
   }
-  return out;  // std::map iterates in sorted order
+  return out;
 }
 
 bool AuthManager::addUser(const String& username, const String& password) {
@@ -185,8 +177,7 @@ bool AuthManager::removeUser(const String& username) {
     Serial.printf("[Auth] removeUser: '%s' not found\n", username.c_str());
     return false;
   }
-  // Invalidate all active sessions belonging to the removed user
-  for (auto it = _sessions.begin(); it != _sessions.end(); ) {
+  for (auto it = _sessions.begin(); it != _sessions.end();) {
     if (it->second.username == username) {
       it = _sessions.erase(it);
     } else {
@@ -209,7 +200,7 @@ bool AuthManager::changePassword(const String& username, const String& newPasswo
   return save();
 }
 
-// ── Private ───────────────────────────────────────────────────────────────────
+// Private
 
 bool AuthManager::save() const {
   JsonDocument doc;
@@ -217,8 +208,8 @@ bool AuthManager::save() const {
   for (const auto& kv : _users) {
     JsonObject u = arr.add<JsonObject>();
     u["username"] = kv.first;
-    u["hash"]     = kv.second.hash;
-    u["salt"]     = kv.second.salt;  // empty string for any remaining legacy entry
+    u["hash"] = kv.second.hash;
+    u["salt"] = kv.second.salt;
   }
 
   File f = LittleFS.open(CONFIG_PATH, "w");
@@ -234,13 +225,8 @@ bool AuthManager::save() const {
 
 String AuthManager::sha256hex(const String& input) {
   uint8_t digest[32];
-
-  // Use the generic mbedTLS MD API - compatible across ESP-IDF 4.x / 5.x
   const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-  mbedtls_md(info,
-             reinterpret_cast<const uint8_t*>(input.c_str()),
-             input.length(),
-             digest);
+  mbedtls_md(info, reinterpret_cast<const uint8_t*>(input.c_str()), input.length(), digest);
 
   String hex;
   hex.reserve(64);
@@ -263,18 +249,13 @@ String AuthManager::generateSalt() {
   return salt;
 }
 
-String AuthManager::hashPassword(const String& salt, const String& password) {
-  return sha256hex(salt + password);
-}
+String AuthManager::hashPassword(const String& salt, const String& password) { return sha256hex(salt + password); }
 
 void AuthManager::trackFailure(const String& username) {
-  // Prevent unbounded growth of the map (RAM exhaustion DoS via login-spam
-  // with random usernames).  Prune expired entries first; if still full, drop.
+  // Cap map size to prevent RAM exhaustion from login-spam with random usernames.
   if (_failedLogins.size() >= MAX_TRACKED_IPS && !_failedLogins.count(username)) {
     pruneExpiredLockouts();
     if (_failedLogins.size() >= MAX_TRACKED_IPS) {
-      // Table is full of active lockouts - silently refuse the request
-      // (attacker gains nothing; real users see regular auth failure).
       return;
     }
   }
@@ -282,19 +263,15 @@ void AuthManager::trackFailure(const String& username) {
   auto& fi = _failedLogins[username];
   if (fi.count == 0) fi.firstFailAt = millis();
   fi.count++;
-  Serial.printf("[Auth] Failed login attempt for '%s' (%d/%d)\n",
-                username.c_str(), fi.count, MAX_FAILED_LOGINS);
+  Serial.printf("[Auth] Failed login attempt for '%s' (%d/%d)\n", username.c_str(), fi.count, MAX_FAILED_LOGINS);
   if (fi.count >= MAX_FAILED_LOGINS) {
-    Serial.printf("[Auth] Account '%s' locked for %lu s\n",
-                  username.c_str(), LOCKOUT_DURATION_MS / 1000UL);
+    Serial.printf("[Auth] Account '%s' locked for %lu s\n", username.c_str(), LOCKOUT_DURATION_MS / 1000UL);
   }
 }
 
 void AuthManager::pruneExpiredLockouts() {
   const unsigned long now = millis();
-  for (auto it = _failedLogins.begin(); it != _failedLogins.end(); ) {
-    // An entry is stale when (a) the lockout window has expired, or
-    // (b) the entry hasn't reached lockout and the window has elapsed.
+  for (auto it = _failedLogins.begin(); it != _failedLogins.end();) {
     if ((now - it->second.firstFailAt) >= LOCKOUT_DURATION_MS) {
       it = _failedLogins.erase(it);
     } else {
@@ -305,7 +282,7 @@ void AuthManager::pruneExpiredLockouts() {
 
 void AuthManager::pruneExpiredSessions() {
   const unsigned long now = millis();
-  for (auto it = _sessions.begin(); it != _sessions.end(); ) {
+  for (auto it = _sessions.begin(); it != _sessions.end();) {
     if (now - it->second.createdAt >= SESSION_DURATION_MS) {
       it = _sessions.erase(it);
     } else {
