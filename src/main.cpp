@@ -110,6 +110,4 @@ void setup() {
   Serial.printf("[WOL] Admin: http://%s/admin\n", WiFi.localIP().toString().c_str());
 }
 
-void loop() {
-  displayManager.update();
-}
+void loop() { displayManager.update(); }

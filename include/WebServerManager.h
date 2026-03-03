@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ESPAsyncWebServer.h>
+
 #include <functional>
 
 #include "AuthManager.h"
@@ -18,11 +19,11 @@ class WebServerManager {
  private:
   AsyncWebServer _server;
   DeviceManager& _deviceManager;
-  AuthManager&   _authManager;
+  AuthManager& _authManager;
 
   std::function<void(const char* alias)> _onWakeCallback;
-  std::function<bool(size_t index)>      _getOnlineStatus;
-  std::function<void()>                  _onDeviceListChanged;
+  std::function<bool(size_t index)> _getOnlineStatus;
+  std::function<void()> _onDeviceListChanged;
 
   bool isAuthenticated(AsyncWebServerRequest* request) const;
   String extractToken(AsyncWebServerRequest* request) const;

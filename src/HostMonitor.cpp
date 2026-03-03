@@ -83,7 +83,6 @@ bool HostMonitor::isOnline(size_t index) const {
 
 void HostMonitor::setOnStatusChange(std::function<void()> cb) { _onStatusChange = cb; }
 
-
 void HostMonitor::setOnline(size_t index, bool newState) {
   const uint8_t next = newState ? 1 : 0;
   if (_online[index] == next) return;

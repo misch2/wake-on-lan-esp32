@@ -1,6 +1,7 @@
 #pragma once
 
 #include <WString.h>
+
 #include <map>
 #include <vector>
 
@@ -16,7 +17,7 @@
  */
 class AuthManager {
  public:
-  static constexpr const char* CONFIG_PATH      = "/auth.json";
+  static constexpr const char* CONFIG_PATH = "/auth.json";
   static constexpr const char* DEFAULT_USERNAME = "admin";
   static constexpr const char* DEFAULT_PASSWORD = "admin";
 
@@ -45,31 +46,31 @@ class AuthManager {
   bool changePassword(const String& username, const String& newPassword);
 
  private:
-  static constexpr unsigned long SESSION_DURATION_MS  = 24UL * 60UL * 60UL * 1000UL;
-  static constexpr size_t        MAX_SESSIONS         = 16;
+  static constexpr unsigned long SESSION_DURATION_MS = 24UL * 60UL * 60UL * 1000UL;
+  static constexpr size_t MAX_SESSIONS = 16;
 
   // Brute-force lockout
-  static constexpr int           MAX_FAILED_LOGINS    = 5;
-  static constexpr unsigned long LOCKOUT_DURATION_MS  = 5UL * 60UL * 1000UL;
-  static constexpr size_t        MAX_TRACKED_IPS      = 32;  // cap to prevent RAM exhaustion
+  static constexpr int MAX_FAILED_LOGINS = 5;
+  static constexpr unsigned long LOCKOUT_DURATION_MS = 5UL * 60UL * 1000UL;
+  static constexpr size_t MAX_TRACKED_IPS = 32;  // cap to prevent RAM exhaustion
 
   struct SessionInfo {
     unsigned long createdAt;
-    String        username;
+    String username;
   };
 
   struct FailInfo {
-    int           count;
+    int count;
     unsigned long firstFailAt;
   };
 
-  std::map<String, UserRecord>  _users;
+  std::map<String, UserRecord> _users;
   std::map<String, SessionInfo> _sessions;
-  std::map<String, FailInfo>    _failedLogins;
+  std::map<String, FailInfo> _failedLogins;
 
-  bool   save() const;
+  bool save() const;
   static String sha256hex(const String& input);
-  void   trackFailure(const String& username);
-  void   pruneExpiredLockouts();
-  void   pruneExpiredSessions();
+  void trackFailure(const String& username);
+  void pruneExpiredLockouts();
+  void pruneExpiredSessions();
 };

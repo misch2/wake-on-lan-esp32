@@ -2,7 +2,6 @@
 
 #include <cstring>
 
-
 DisplayManager::DisplayManager()
     : _u8g2(U8G2_R0,
 #ifdef PIN_OLED_RESET
@@ -12,7 +11,6 @@ DisplayManager::DisplayManager()
 #endif
             PIN_OLED_SCL, PIN_OLED_SDA) {
 }
-
 
 void DisplayManager::begin() {
   _u8g2.begin();
@@ -70,7 +68,6 @@ void DisplayManager::update() {
       break;
   }
 }
-
 
 void DisplayManager::drawWiFiPortal() {
   _u8g2.clearBuffer();

@@ -36,9 +36,7 @@ String WebServerManager::extractToken(AsyncWebServerRequest* request) const {
   return token;
 }
 
-bool WebServerManager::isAuthenticated(AsyncWebServerRequest* request) const {
-  return _authManager.validateSession(extractToken(request));
-}
+bool WebServerManager::isAuthenticated(AsyncWebServerRequest* request) const { return _authManager.validateSession(extractToken(request)); }
 
 static void redirectToLogin(AsyncWebServerRequest* request) {
   AsyncWebServerResponse* resp = request->beginResponse(302);
@@ -199,9 +197,9 @@ void WebServerManager::registerRoutes() {
           return;
         }
 
-        const String current     = doc["current"]     | "";
+        const String current = doc["current"] | "";
         const String newPassword = doc["newPassword"] | "";
-        const String username    = _authManager.getSessionUser(token);
+        const String username = _authManager.getSessionUser(token);
 
         if (!_authManager.checkCredentials(username, current)) {
           request->send(403, "application/json", R"({"error":"Current password is incorrect"})");
@@ -325,7 +323,6 @@ void WebServerManager::registerRoutes() {
       request->send(400, "application/json", R"({"error":"Invalid MAC address format"})");
     }
   });
-
 
   _server.onNotFound([](AsyncWebServerRequest* request) { request->send(404, "text/plain", "Not Found"); });
 }

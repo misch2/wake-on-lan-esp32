@@ -34,8 +34,8 @@ bool DeviceManager::begin() {
   _devices.clear();
   for (JsonObject obj : doc.as<JsonArray>()) {
     const String alias = obj["alias"] | "";
-    const String mac   = obj["mac"]   | "";
-    const String ip    = obj["ip"]    | "";
+    const String mac = obj["mac"] | "";
+    const String ip = obj["ip"] | "";
     if (alias.length() > 0 && mac.length() > 0) {
       _devices.push_back({alias, mac, ip});
     }
@@ -51,8 +51,8 @@ bool DeviceManager::save() const {
   for (const auto& d : _devices) {
     JsonObject obj = arr.add<JsonObject>();
     obj["alias"] = d.alias;
-    obj["mac"]   = d.mac;
-    obj["ip"]    = d.ip;
+    obj["mac"] = d.mac;
+    obj["ip"] = d.ip;
   }
 
   File f = LittleFS.open(CONFIG_PATH, "w");
