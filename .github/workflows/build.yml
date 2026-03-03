@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: [self-hosted, linux, x64]
+    env:
+      PIP_ROOT_USER_ACTION: ignore
 
     steps:
       - uses: actions/checkout@v4
