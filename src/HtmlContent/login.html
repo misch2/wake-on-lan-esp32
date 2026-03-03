@@ -59,7 +59,9 @@ R"HTML(
       });
       if (r.ok) {
         const params = new URLSearchParams(window.location.search);
-        window.location.href = params.get('next') || '/admin';
+        const next = params.get('next');
+        // Only follow same-origin relative paths to prevent open-redirect attacks.
+        window.location.href = (next && next.startsWith('/') && !next.startsWith('//')) ? next : '/admin';
       } else {
         const data = await r.json().catch(() => ({}));
         err.textContent = data.error || 'Login failed.';
