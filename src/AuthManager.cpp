@@ -5,7 +5,7 @@
 #include <LittleFS.h>
 #include <mbedtls/md.h>
 
-// ── Public ────────────────────────────────────────────────────────────────────
+// Public
 
 static void makeDefaultUser(std::map<String, AuthManager::UserRecord>& users) {
   const String salt = AuthManager::generateSalt();
@@ -202,7 +202,7 @@ bool AuthManager::changePassword(const String& username, const String& newPasswo
   return save();
 }
 
-// ── Private ───────────────────────────────────────────────────────────────────
+// Private
 
 bool AuthManager::save() const {
   JsonDocument doc;

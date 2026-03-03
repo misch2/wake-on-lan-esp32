@@ -21,7 +21,7 @@ void WebServerManager::begin() {
   Serial.printf("[HTTP] Web server started on port %d\n", WEB_SERVER_PORT);
 }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
+// Private helpers
 
 String WebServerManager::extractToken(AsyncWebServerRequest* request) const {
   const AsyncWebHeader* h = request->getHeader("Cookie");
@@ -46,20 +46,20 @@ static void redirectToLogin(AsyncWebServerRequest* request) {
   request->send(resp);
 }
 
-// ── Routes ────────────────────────────────────────────────────────────────────
+// Routes
 
 void WebServerManager::registerRoutes() {
-  // ── GET / ──
+  // GET /
   _server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
     String html = HTML_CONTENT;
     html.replace("{{GIT_HASH}}", GIT_HASH);
     request->send(200, "text/html", html);
   });
 
-  // ── GET /login ──
+  // GET /login
   _server.on("/login", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(200, "text/html", HTML_LOGIN); });
 
-  // ── POST /api/login ──
+  // POST /api/login
   _server.on(
       "/api/login", HTTP_POST, [](AsyncWebServerRequest* request) {}, nullptr,
       [this](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
@@ -85,7 +85,7 @@ void WebServerManager::registerRoutes() {
         request->send(resp);
       });
 
-  // ── POST /api/logout ──
+  // POST /api/logout
   _server.on("/api/logout", HTTP_POST, [this](AsyncWebServerRequest* request) {
     _authManager.destroySession(extractToken(request));
     AsyncWebServerResponse* resp = request->beginResponse(200, "application/json", R"({"status":"ok"})");
@@ -93,7 +93,7 @@ void WebServerManager::registerRoutes() {
     request->send(resp);
   });
 
-  // ── GET /admin (protected) ──
+  // GET /admin (protected)
   _server.on("/admin", HTTP_GET, [this](AsyncWebServerRequest* request) {
     if (!isAuthenticated(request)) {
       redirectToLogin(request);
@@ -102,7 +102,7 @@ void WebServerManager::registerRoutes() {
     request->send(200, "text/html", HTML_ADMIN);
   });
 
-  // ── GET /api/devices (public) ──
+  // GET /api/devices (public)
   _server.on("/api/devices", HTTP_GET, [this](AsyncWebServerRequest* request) {
     const auto& devices = _deviceManager.devices();
     JsonDocument doc;
@@ -121,7 +121,7 @@ void WebServerManager::registerRoutes() {
     request->send(200, "application/json", json);
   });
 
-  // ── POST /api/devices (protected) ──
+  // POST /api/devices (protected)
   _server.on(
       "/api/devices", HTTP_POST, [](AsyncWebServerRequest* request) {}, nullptr,
       [this](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
@@ -157,7 +157,7 @@ void WebServerManager::registerRoutes() {
         request->send(200, "application/json", R"({"status":"ok"})");
       });
 
-  // ── DELETE /api/devices (protected) ──
+  // DELETE /api/devices (protected)
   _server.on("/api/devices", HTTP_DELETE, [this](AsyncWebServerRequest* request) {
     if (!isAuthenticated(request)) {
       request->send(401, "application/json", R"({"error":"Unauthorized"})");
@@ -181,7 +181,7 @@ void WebServerManager::registerRoutes() {
     request->send(200, "application/json", R"({"status":"ok"})");
   });
 
-  // ── POST /api/password (protected) ──
+  // POST /api/password (protected)
   _server.on(
       "/api/password", HTTP_POST, [](AsyncWebServerRequest* request) {}, nullptr,
       [this](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
@@ -221,7 +221,7 @@ void WebServerManager::registerRoutes() {
         request->send(200, "application/json", R"({"status":"ok"})");
       });
 
-  // ── GET /api/users (protected) ──
+  // GET /api/users (protected)
   _server.on("/api/users", HTTP_GET, [this](AsyncWebServerRequest* request) {
     if (!isAuthenticated(request)) {
       request->send(401, "application/json", R"({"error":"Unauthorized"})");
@@ -236,7 +236,7 @@ void WebServerManager::registerRoutes() {
     request->send(200, "application/json", json);
   });
 
-  // ── POST /api/users (protected) ──
+  // POST /api/users (protected)
   _server.on(
       "/api/users", HTTP_POST, [](AsyncWebServerRequest* request) {}, nullptr,
       [this](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
@@ -274,7 +274,7 @@ void WebServerManager::registerRoutes() {
         request->send(200, "application/json", R"({"status":"ok"})");
       });
 
-  // ── DELETE /api/users (protected) ──
+  // DELETE /api/users (protected)
   _server.on("/api/users", HTTP_DELETE, [this](AsyncWebServerRequest* request) {
     if (!isAuthenticated(request)) {
       request->send(401, "application/json", R"({"error":"Unauthorized"})");
@@ -302,7 +302,7 @@ void WebServerManager::registerRoutes() {
     request->send(200, "application/json", R"({"status":"ok"})");
   });
 
-  // ── POST /api/wake (public) ──
+  // POST /api/wake (public)
   _server.on("/api/wake", HTTP_POST, [this](AsyncWebServerRequest* request) {
     if (!request->hasParam("mac")) {
       request->send(400, "application/json", R"({"error":"Missing 'mac' query parameter"})");

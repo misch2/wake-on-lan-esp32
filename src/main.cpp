@@ -52,7 +52,7 @@ static void connectWiFi() {
   Serial.printf("[WiFi] Gateway:     %s\n", WiFi.gatewayIP().toString().c_str());
 }
 
-// ── Arduino entry points ──
+// Arduino entry points
 
 void setup() {
   Serial.begin(115200);
@@ -88,10 +88,10 @@ void setup() {
   displayManager.showConnected(WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
   displayManager.update();
 
-  // ── HostMonitor ──────────────────────────────────────────────────────────
+  // HostMonitor
   hostMonitor.begin(deviceManager.devices());
 
-  // ── Wire the WOL notification to the display ──────────────────────────────
+  // Wire the WOL notification to the display
   webServerManager.setOnWakeCallback([](const char* alias) {
     displayManager.showWaking(alias);
     displayManager.update();
