@@ -11,6 +11,8 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     env:
       PIP_ROOT_USER_ACTION: ignore
+      VENV_PATH: /runner/data/venv/platformio
+      PLATFORMIO_CORE_DIR: /runner/data/platformio
 
     steps:
       - uses: actions/checkout@v4
@@ -21,24 +23,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-            .venv
-          key: ${{ runner.os }}-venv-platformio
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.platformio/.cache
-          key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini') }}
-          restore-keys: ${{ runner.os }}-pio-
-
       - name: Set up Python virtual environment
         run: |
-          python3 -m venv .venv
-          echo "${{ github.workspace }}/.venv/bin" >> $GITHUB_PATH
+          python3 -m venv $VENV_PATH
+          echo "$VENV_PATH/bin" >> $GITHUB_PATH
 
       - name: Install PlatformIO
         run: pip install platformio
